@@ -133,9 +133,9 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Read data for primary datastream
     if len(files) > 0:
         try:
-            obj = act.io.armfiles.read_netcdf(files)
+            obj = act.io.armfiles.read_netcdf(files, compat='override')
         except ValueError: 
-            obj = act.io.armfiles.read_netcdf(files[0])
+            obj = act.io.armfiles.read_netcdf(files[0], compat='override')
         obj = obj.sortby('time')
     else:
         obj = None
@@ -161,7 +161,7 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Set up dataframe with all expected times for day
     d0 = pd.to_datetime(d)
     d1 = d0 + dt.timedelta(days=1)
-    d_range = pd.date_range(d0, d1, freq=str(t_delta) + 'T', closed='left')
+    d_range = pd.date_range(d0, d1, freq=str(t_delta) + 'T')
     df1 = pd.DataFrame({'counts': np.zeros(len(d_range))}, index=d_range)
 
     # Join datasets with dataframe
@@ -365,7 +365,7 @@ if __name__ == '__main__':
 
         # Get data from dask and create images for display
         t_delta = int(stats.mode([r['t_delta'] for r in results])[0][0])
-        y_times = pd.date_range(start, start + dt.timedelta(days=1), freq=str(t_delta) + 'T', closed='left')
+        y_times = pd.date_range(start, start + dt.timedelta(days=1), freq=str(t_delta) + 'T')
         y_times_time = np.array([ti.time() for ti in y_times])
         img = [list(r['data']) for r in results]
         dqr_img = [list(r['dqr_data']) for r in results]

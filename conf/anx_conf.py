@@ -28,7 +28,7 @@ conf = {
         'mwr': {'dsname': 'mwrlosM1.b1'},
         #'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'nfov': {'dsname': 'nfov2chM1.b1'},
-        'rwp': {'dsname': '1290rwpprecipconM1.a1', 'dsname2': '1290rwpwindconM1.a1', 't_delta': 10},
+        #'rwp': {'dsname': '1290rwpprecipconM1.a1', 'dsname2': '1290rwpwindconM1.a1', 't_delta': 10},
         'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
         'sodar': {'dsname': 'sodarM1.b1', 't_delta': 30},
