@@ -16,7 +16,7 @@ conf = {
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'dl': {'dsname': 'dlfptM1.b1'},
+        'dl': {'dsname': 'dlfptM1.b1', 't_delta': 15},
         'ecor': {'dsname': '30ecorM1.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sM1.b1'},
         'irt': {'dsname': 'irtsstM1.b1'},
@@ -35,7 +35,7 @@ conf = {
         'sasze': {'dsname': 'saszefilterbandsM1.a1'},
         'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
-        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./2.},
+        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./4.},
         'tsi': {'dsname': 'tsiskycoverM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
