@@ -67,7 +67,6 @@ def get_doi(site, dsname, c_start, c_end):
         doi = doi.json()['citation']
     else:
         doi = 'N/A'
-
     return doi
 
 

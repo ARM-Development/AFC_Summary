@@ -7,7 +7,7 @@ conf = {
     'facility': 'M1',
     'start_date': '2021-09-01',
     'end_date': '2023-06-15',
-    'outname': '/home/theisen/www/afc_summary/guc_M1_summary.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/guc_M1_summary.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'dqr_table': True,
