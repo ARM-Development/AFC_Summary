@@ -3,7 +3,7 @@
 # t_delta: Script will resample data to 1 min.  If gaps are longer set this appropriately
 # workers: Set to 1 in the case of radar data so it doesn't crash the system
 conf = {
-    'site': 'ecp',
+    'site': 'epc',
     'facility': 'M1',
     'start_date': '2023-02-15',
     'end_date': '2024-02-14',

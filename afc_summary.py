@@ -128,7 +128,6 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Set time delta to 1 minute if not specified
     if t_delta is None:
         t_delta = 1
-
     # Read data for primary datastream
     if len(files) > 0:
         try:
