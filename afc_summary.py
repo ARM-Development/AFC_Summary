@@ -166,7 +166,6 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     if len(files) > 0:
         counts = obj['time'].resample(time=str(t_delta) + 'min').count().to_dataframe()
         counts[counts > 1] = 1
-        print(counts)
         dqr_counts = counts * 0.
         # Flag data for  DQRs
         # Work on passing DQR times to get_da to flag

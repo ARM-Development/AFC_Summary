@@ -35,7 +35,7 @@ conf = {
         'sasze': {'dsname': 'saszefilterbandsM1.a1'},
         'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
-        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./4},
+        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./3},
         'tsi': {'dsname': 'tsiskycoverM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
