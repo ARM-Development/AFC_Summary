@@ -124,7 +124,6 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     if len(files) == 0:
         files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*cdf']))
     files = sorted(files)
-
     # Set time delta to 1 minute if not specified
     if t_delta is None:
         t_delta = 1
@@ -167,6 +166,7 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     if len(files) > 0:
         counts = obj['time'].resample(time=str(t_delta) + 'min').count().to_dataframe()
         counts[counts > 1] = 1
+        print(counts)
         dqr_counts = counts * 0.
         # Flag data for  DQRs
         # Work on passing DQR times to get_da to flag
