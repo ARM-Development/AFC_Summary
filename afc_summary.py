@@ -131,9 +131,9 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Read data for primary datastream
     if len(files) > 0:
         try:
-            obj = act.io.armfiles.read_netcdf(files, compat='override')
+            obj = act.io.armfiles.read_netcdf(files, coords=['time'], compat='override')
         except ValueError: 
-            obj = act.io.armfiles.read_netcdf(files[0], compat='override')
+            obj = act.io.armfiles.read_netcdf(files[0], coords=['time'], compat='override')
         obj = obj.sortby('time')
     else:
         obj = None
