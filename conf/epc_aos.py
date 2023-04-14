@@ -28,6 +28,7 @@ conf = {
         'psap': {'dsname': 'aospsap3w1mM1.b1'},
         'smps': {'dsname': 'aossmpsM1.b1', 't_delta': 30},
         'so2': {'dsname': 'aosso2M1.b1'},
+        'sp2': {'dsname': 'aossp2bc60sS2.b1'},
         'uhsas': {'dsname': 'aosuhsasM1.b1'},
     }
 }
