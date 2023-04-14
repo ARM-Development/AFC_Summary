@@ -183,7 +183,6 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
                 dqr_counts.iloc[idx]  = code_map[assessment]
 
         data = df1.join(counts)
-        print(data)
         data.loc[data['time'] > 0, 'time'] = 1
         r_data = np.nan_to_num(data['time'].tolist())
 

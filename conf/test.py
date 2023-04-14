@@ -14,6 +14,6 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'sp2': {'dsname': 'aossp2bc60sS2.b1'},
+        'sp2': {'dsname': 'aossp2bc60sM1.b1'},
     }
 }
