@@ -21,7 +21,7 @@ conf = {
         'co-analyzer': {'dsname': 'aoscoM1.b1'},
         'cpc': {'dsname': 'aoscpcf1mM1.b1'},
         'cpc': {'dsname': 'aoscpcu1mM1.b1'},
-        'htdma': {'dsname': 'aoshtdmaM1.a1', 't_delta': 60},
+        'htdma': {'dsname': 'aoshtdmaM1.a1', 't_delta': 11},
         'nephelometer': {'dsname': 'aosnephdry1mM1.b1'},
         'nephelometer': {'dsname': 'aosnephwet1mM1.b1'},
         'ozone': {'dsname': 'aoso3M1.b1'},
