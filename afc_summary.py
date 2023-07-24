@@ -145,7 +145,7 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
             files2 = glob.glob('/data/archive/' + site + '/' + ds2 + '/' + ds2 + '*' + d + '*cdf')
         files2 = sorted(files2)
         if len(files2) > 0:
-            obj2 = act.io.armfiles.read_netcdf(files2, combine='nested', coords=['time'])
+            obj2 = act.io.armfiles.read_netcdf(files2, combine='nested', coords=['time'], compat='override')
             obj2 = obj2.sortby('time')
             if obj is not None:
                 obj = obj['time'].combine_first(obj2['time'])
