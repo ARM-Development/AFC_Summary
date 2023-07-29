@@ -7,20 +7,20 @@ conf = {
     'facility': 'M1',
     'start_date': '2019-10-01',
     'end_date': '2020-10-01',
-    'outname': '/home/theisen/www/afc_summary/mos_tables.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/www/afc_summary/mos_M1_summary.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1', 't_delta': 5},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'dl': {'dsname': 'dlfptM1.a1', 't_delta': 1440},
+        'dl': {'dsname': 'dlfptM1.a1'},
         'hsrl': {'dsname': 'hsrlM1.a1'},
-        'kazr': {'dsname': 'kazrcfrgeM1.a1', 'workers': 1},
+        #'kazr': {'dsname': 'kazrcfrgeM1.a1', 'workers': 1},
         'ldis': {'dsname': 'ldM1.b1'},
         'met': {'dsname': 'pwdM1.b1'},
         'mpl': {'dsname': 'mplpolfsM1.b1'},
-        'mwacr': {'dsname': 'mwacrcfrM1.a1', 'workers': 1},
+        #'mwacr': {'dsname': 'mwacrcfrM1.a1', 'workers': 1},
         'mwr': {'dsname': 'mwrlosM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'rwp': {'dsname': '1290bsrwpwindavgM1.b1', 't_delta': 60},

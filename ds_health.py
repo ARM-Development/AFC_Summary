@@ -14,9 +14,8 @@ import subprocess
 import pandas as pd
 
 # Set site for processing
-site = 'hou'
+site = 'mos'
 dirs = glob.glob('/data/archive/' + site + '/*')
-dirs = ['/data/archive/sgp/sgpsondewnpnC1.b1/']
 dirs.sort()
 
 # Set directories to exclude if there are image files or high-frequency files
