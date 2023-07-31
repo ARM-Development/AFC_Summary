@@ -21,7 +21,7 @@ conf = {
         'aos': {'dsname': 'aosimpactorM1.a1', 't_delta': 60},
         'nephelometer': {'dsname': 'aosnephdryM1.a1'},
         'ozone': {'dsname': 'aoso3M1.a1'}, #Bad times!
-        'psap': {'dsname': 'aospsap3w1mM1.a1'},
+        'psap': {'dsname': 'aospsap3wM1.a1'},
         'smps': {'dsname': 'aossmpsM1.a1', 't_delta': 30},
         #'sp2': {'dsname': 'aossp2auxM1.a0'},
         'uhsas': {'dsname': 'aosuhsasM1.a1'},

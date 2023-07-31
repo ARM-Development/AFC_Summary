@@ -7,8 +7,10 @@ conf = {
     'facility': 'M1',
     'start_date': '2019-10-01',
     'end_date': '2020-10-01',
-    'outname': '/home/theisen/www/afc_summary/mos_M1_summary.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/mos_M1_summary.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
+    'info_style': 'simple',
+    'data_path': '/data/archive',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
@@ -25,7 +27,7 @@ conf = {
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'rwp': {'dsname': '1290bsrwpwindavgM1.b1', 't_delta': 60},
         'rain': {'dsname': 'srgM1.a1'},
-        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440/4},
+        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440/2},
         'tsi': {'dsname': 'tsiskycoverM1.b1'}
     }
 }
