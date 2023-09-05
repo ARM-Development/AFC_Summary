@@ -7,7 +7,7 @@ conf = {
     'facility': 'M1',
     'start_date': '2023-02-15',
     'end_date': '2024-02-14',
-    'outname': '/home/theisen/Code/AFC_Summary/images/epc_aos_data_avail.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/epc/epc_aos_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'data_path': '/data/archive',
