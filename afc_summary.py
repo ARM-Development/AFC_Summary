@@ -30,11 +30,10 @@ def get_dqr(ds):
 
     """
     # Build URL and call through requests
-    url = ''.join(("https://www.adc.arm.gov/dqrws/ARMDQR?datastream=", ds,
-                   "&dqrfields=dqrid,starttime,endtime,metric,subject&timeformat=YYYYMMDD.hhmmss",
-                   "&searchmetric=incorrect,suspect,missing"))
+    url = ''.join(("https://dqr-web-service.svcs.arm.gov/dqr_qc/", ds, '/incorrect,suspect,missing'))
     r = requests.get(url=url)
 
+    print(r)
     # Run through the returns and compile data
     num = []
     sdate = []
@@ -130,9 +129,9 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Read data for primary datastream
     if len(files) > 0:
         try:
-            obj = act.io.armfiles.read_netcdf(files, coords=['time'], compat='override')
+            obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override')
         except ValueError: 
-            obj = act.io.armfiles.read_netcdf(files[0], coords=['time'], compat='override')
+            obj = act.io.arm.read_arm_netcdf(files[0], coords=['time'], compat='override')
         obj = obj.sortby('time')
     else:
         obj = None
@@ -145,7 +144,7 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
             files2 = glob.glob('/data/archive/' + site + '/' + ds2 + '/' + ds2 + '*' + d + '*cdf')
         files2 = sorted(files2)
         if len(files2) > 0:
-            obj2 = act.io.armfiles.read_netcdf(files2, combine='nested', coords=['time'], compat='override')
+            obj2 = act.io.arm.read_arm_netcdf(files2, combine='nested', coords=['time'], compat='override')
             obj2 = obj2.sortby('time')
             if obj is not None:
                 obj = obj['time'].combine_first(obj2['time'])
