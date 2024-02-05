@@ -33,23 +33,27 @@ def get_dqr(ds):
     url = ''.join(("https://dqr-web-service.svcs.arm.gov/dqr_qc/", ds, '/incorrect,suspect,missing'))
     r = requests.get(url=url)
 
-    print(r)
+    docs = json.loads(r.text)
+
     # Run through the returns and compile data
     num = []
     sdate = []
     edate = []
     code = []
     sub = []
-    for line in r.iter_lines():
-        # filter out keep-alive new lines
-        if line:
-            decoded_line = line.decode('utf-8')
-            result = decoded_line.split('|')
-            num.append(result[0])
-            sdate.append(result[1])
-            edate.append(result[2])
-            code.append(result[3])
-            sub.append(result[4])
+    if ds in docs:
+        docs = docs[ds]
+        for quality_category in docs:
+            for dqr_number in docs[quality_category]:
+                for time_range in docs[quality_category][dqr_number]['dates']:
+                    starttime = np.datetime64(time_range['start_date'])
+                    endtime = np.datetime64(time_range['end_date'])
+
+                    num.append(dqr_number)
+                    sdate.append(starttime)
+                    edate.append(endtime)
+                    code.append(quality_category)
+                    sub.append(docs[quality_category][dqr_number]['subject'])
 
     return {'dqr_num': num, 'sdate': sdate, 'edate': edate, 'code': code, 'subject': sub}
 
@@ -157,11 +161,11 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     # Set up dataframe with all expected times for day
     d0 = pd.to_datetime(d)
     d1 = d0 + dt.timedelta(days=1)
-    d_range = pd.date_range(d0, d1, freq=str(t_delta) + 'T')
+    d_range = pd.date_range(d0, d1, freq=str(t_delta) + 'min')
     df1 = pd.DataFrame({'counts': np.zeros(len(d_range))}, index=d_range)
 
     # Join datasets with dataframe
-    code_map = {'suspect':  2, 'incorrect': 3, 'missing': 4}
+    code_map = {'Suspect':  2, 'Incorrect': 3, 'Missing': 4}
     if len(files) > 0:
         counts = obj['time'].resample(time=str(t_delta) + 'min').count().to_dataframe()
         counts[counts > 1] = 1
@@ -169,8 +173,10 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
         # Flag data for  DQRs
         # Work on passing DQR times to get_da to flag
         for jj, d in enumerate(dqr['dqr_num']):
-            dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
-            dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
+            #dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
+            #dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
+            dqr_start = dqr['sdate'][jj]
+            dqr_end = dqr['edate'][jj]
             # Check for open-ended DQRs
             if dt.datetime(3000, 1, 1) < dqr_end:
                 dqr_end = dt.datetime.strptime(c_end, '%Y-%m-%d') + dt.timedelta(days=1)
@@ -196,8 +202,10 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
         # Flag data for  DQRs
         # Work on passing DQR times to get_da to flag
         for jj, d in enumerate(dqr['dqr_num']):
-            dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
-            dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
+            #dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
+            #dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
+            dqr_start = dqr['sdate'][jj]
+            dqr_end = dqr['edate'][jj]
             # Check for open-ended DQRs
             if dt.datetime(3000, 1, 1) < dqr_end:
                 dqr_end = dt.datetime.strptime(c_end, '%Y-%m-%d') + dt.timedelta(days=1)
@@ -357,11 +365,12 @@ if __name__ == '__main__':
         for jj, d in enumerate(c_dates):
             #task.append(get_da(site, dsname, dsname2, t_delta, d.strftime('%Y%m%d'), dqr))
             task.append(dask.delayed(get_da)(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
+            #get_da(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end)
         results = dask.compute(*task, num_workers=workers)
 
         # Get data from dask and create images for display
-        t_delta = int(stats.mode([r['t_delta'] for r in results])[0][0])
-        y_times = pd.date_range(start, start + dt.timedelta(days=1), freq=str(t_delta) + 'T')
+        t_delta = int(stats.mode([r['t_delta'] for r in results])[0])
+        y_times = pd.date_range(start, start + dt.timedelta(days=1), freq=str(t_delta) + 'min')
         y_times_time = np.array([ti.time() for ti in y_times])
         img = [list(r['data']) for r in results]
         dqr_img = [list(r['dqr_data']) for r in results]
