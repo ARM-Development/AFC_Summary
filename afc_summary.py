@@ -47,7 +47,6 @@ def get_dqr(ds):
             for dqr_number in docs[quality_category]:
                 for time_range in docs[quality_category][dqr_number]['dates']:
                     starttime = np.datetime64(time_range['start_date'])
-                    print(time_range['end_date'] , type(time_range['end_date'] ))
                     if time_range['end_date'] != "None":
                         endtime = np.datetime64(time_range['end_date'])
                     else:
@@ -482,7 +481,7 @@ if __name__ == '__main__':
             ax.axis('off')
             ax.axis('tight')
             plt.title('ARM Data Quality Report (DQR) Table', y=1.)
-            cw = [0.165, 0.085, 0.08, 0.38, 0.13, 0.13]
+            cw = [0.165, 0.085, 0.08, 0.35, 0.145, 0.145]
             table = ax.table(cellText=dqr_tab[slice(ii * num_page, (ii + 1) *  num_page)], colLabels=header,
                              loc='best', colWidths=cw, cellLoc='left')
             table.scale(1,1.7)
