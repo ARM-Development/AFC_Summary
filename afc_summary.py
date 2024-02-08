@@ -47,7 +47,11 @@ def get_dqr(ds):
             for dqr_number in docs[quality_category]:
                 for time_range in docs[quality_category][dqr_number]['dates']:
                     starttime = np.datetime64(time_range['start_date'])
-                    endtime = np.datetime64(time_range['end_date'])
+                    print(time_range['end_date'] , type(time_range['end_date'] ))
+                    if time_range['end_date'] != "None":
+                        endtime = np.datetime64(time_range['end_date'])
+                    else:
+                        endtime = dt.datetime.strptime('3001-01-01', '%Y-%m-%d')
 
                     num.append(dqr_number)
                     sdate.append(starttime)
