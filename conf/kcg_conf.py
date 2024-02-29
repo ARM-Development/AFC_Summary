@@ -10,7 +10,7 @@ conf = {
     'outname': '/home/theisen/Code/AFC_Summary/images/kcg/kcg_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
-    'data_path': '/data/archive',
+    'data_path': '/data/datastream',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{

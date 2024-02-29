@@ -129,10 +129,12 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
     files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*nc']))
     if len(files) == 0:
         files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*cdf']))
+
     files = sorted(files)
     # Set time delta to 1 minute if not specified
     if t_delta is None:
         t_delta = 1
+
     # Read data for primary datastream
     if len(files) > 0:
         try:
