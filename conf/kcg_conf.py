@@ -5,8 +5,8 @@
 conf = {
     'site': 'kcg',
     'facility': 'M1',
-    'start_date': '2023-02-15',
-    'end_date': '2024-02-14',
+    'start_date': '2024-02-21',
+    'end_date': '2025-06-14',
     'outname': '/home/theisen/Code/AFC_Summary/images/kcg/kcg_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
