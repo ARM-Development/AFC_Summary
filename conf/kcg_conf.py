@@ -32,7 +32,7 @@ conf = {
         'mpl': {'dsname': 'mplpolfsM1.b1'},
         'mwr': {'dsname': 'mwrlosM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
-        'rwp': {'dsname': '1290rwpwindconM1M1.b1', 't_delta': 60},
+        'rwp': {'dsname': '1290rwpwindconM1M1.a1', 't_delta': 60},
         'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
         'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./2},
