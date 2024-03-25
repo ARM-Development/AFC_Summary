@@ -14,10 +14,6 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'aps': {'dsname': 'aosapsS3.a1'},
-        'sp2': {'dsname': 'aossp2bc60sS3.b1'},
-        'uhsas': {'dsname': 'aosuhsaS3.b1'},
-        'aosmet': {'dsname': 'aosmetS2.a1'},
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60},
@@ -39,5 +35,9 @@ conf = {
         #'tsi': {'dsname': 'tsiskycoverM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
+        'aps': {'dsname': 'aosapsS3.a1'},
+        'sp2': {'dsname': 'aossp2bc60sS3.b1'},
+        'uhsas': {'dsname': 'aosuhsaS3.b1'},
+        'aosmet': {'dsname': 'aosmetS2.a1'},
     }
 }
