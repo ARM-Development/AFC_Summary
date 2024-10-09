@@ -14,15 +14,15 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'aeriSi30': {'dsname': 'aerisummaryS30.b1'},
-        'mwr3cS30': {'dsname': 'mwr3cS30.b1'},
-        'ecorS30': {'dsname': '30ecorS30.b1', 't_delta': 30},
-        'gndradS30': {'dsname': 'gndrad60sS30.b1'},
-        'irtS30': {'dsname': 'irtS30.b1'},
-        'metS30': {'dsname': 'metS30.b1'},
-        'mfrsrS30': {'dsname': 'mfrsr7nchS30.b1'},
-        'sebsS30': {'dsname': 'sebsS30.b1'},
-        'skyradS30': {'dsname': 'skyrad60sS30.b1'},
-        'stampS30': {'dsname': 'stampS30.b1'},
+        'aeri': {'dsname': 'aerisummaryS30.b1'},
+        'mwr3c': {'dsname': 'mwr3cS30.b1'},
+        'ecor': {'dsname': '30ecorS30.b1', 't_delta': 30},
+        'gndrad': {'dsname': 'gndrad60sS30.b1'},
+        'irt': {'dsname': 'irtS30.b1'},
+        'met': {'dsname': 'metS30.b1'},
+        'mfrsr': {'dsname': 'mfrsr7nchS30.b1'},
+        'sebs': {'dsname': 'sebsS30.b1'},
+        'skyrad': {'dsname': 'skyrad60sS30.b1'},
+        'stamp': {'dsname': 'stampS30.b1'},
     }
 }

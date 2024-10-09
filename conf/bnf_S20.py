@@ -14,16 +14,16 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'aeriS20': {'dsname': 'aerisummaryS20.b1'},
-        'dlS20': {'dsname': 'dlfptS20.b1', 't_delta': 60},
-        'mwr3cS20': {'dsname': 'mwr3cS20.b1'},
-        'ecorS20': {'dsname': '30ecorS20.b1', 't_delta': 30},
-        'gndradS20': {'dsname': 'gndrad60sS20.b1'},
-        'irtS20': {'dsname': 'irtS20.b1'},
-        'metS20': {'dsname': 'metS20.b1'},
-        'mfrsrS20': {'dsname': 'mfrsr7nchS20.b1'},
-        'sebsS20': {'dsname': 'sebsS20.b1'},
-        'skyradS20': {'dsname': 'skyrad60sS20.b1'},
-        'stampS20': {'dsname': 'stampS20.b1'},
+        'aeri': {'dsname': 'aerisummaryS20.b1'},
+        'dl': {'dsname': 'dlfptS20.b1', 't_delta': 60},
+        'mwr3c': {'dsname': 'mwr3cS20.b1'},
+        'ecor': {'dsname': '30ecorS20.b1', 't_delta': 30},
+        'gndrad': {'dsname': 'gndrad60sS20.b1'},
+        'irt': {'dsname': 'irtS20.b1'},
+        'met': {'dsname': 'metS20.b1'},
+        'mfrsr': {'dsname': 'mfrsr7nchS20.b1'},
+        'sebs': {'dsname': 'sebsS20.b1'},
+        'skyrad': {'dsname': 'skyrad60sS20.b1'},
+        'stamp': {'dsname': 'stampS20.b1'},
     }
 }
