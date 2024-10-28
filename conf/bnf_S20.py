@@ -22,7 +22,7 @@ conf = {
         'irt': {'dsname': 'irtS20.b1'},
         'met': {'dsname': 'metS20.b1'},
         'mfrsr': {'dsname': 'mfrsr7nchS20.b1'},
-        'sebs': {'dsname': 'sebsS20.b1'},
+        'sebs': {'dsname': 'sebsS20.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sS20.b1'},
         'stamp': {'dsname': 'stampS20.b1', 't_delta': 30},
     }

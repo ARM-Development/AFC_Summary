@@ -21,8 +21,8 @@ conf = {
         'irt': {'dsname': 'irtS30.b1'},
         'met': {'dsname': 'metS30.b1'},
         'mfrsr': {'dsname': 'mfrsr7nchS30.b1'},
-        'sebs': {'dsname': 'sebsS30.b1'},
+        'sebs': {'dsname': 'sebsS30.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sS30.b1'},
-        'stamp': {'dsname': 'stampS30.b1'},
+        'stamp': {'dsname': 'stampS30.b1', 't_delta': 30},
     }
 }
