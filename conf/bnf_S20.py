@@ -24,6 +24,6 @@ conf = {
         'mfrsr': {'dsname': 'mfrsr7nchS20.b1'},
         'sebs': {'dsname': 'sebsS20.b1'},
         'skyrad': {'dsname': 'skyrad60sS20.b1'},
-        'stamp': {'dsname': 'stampS20.b1'},
+        'stamp': {'dsname': 'stampS20.b1', 't_delta': 30},
     }
 }
