@@ -17,7 +17,7 @@ conf = {
         'aeri': {'dsname': 'aerisummaryS40.b1'},
         'dl': {'dsname': 'dlfptS40.b1', 't_delta': 60},
         'mwr3c': {'dsname': 'mwr3cS40.b1'},
-        'ecor': {'dsname': '30ecorS40.b1', 't_delta': 30},
+        'ecor': {'dsname': 'ecorsfS40.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sS40.b1'},
         'irt': {'dsname': 'irtS40.b1'},
         'met': {'dsname': 'metS40.b1'},

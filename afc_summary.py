@@ -358,8 +358,6 @@ if __name__ == '__main__':
             ax0.get_xaxis().set_visible(False)
             ax0.get_yaxis().set_visible(False)
             description = get_metadata(ds, return_fac=True)
-            print(description)
-            sys.exit()
             ax0.text(0.5, 0.99, '\n'.join(textwrap.wrap(description, width=70)), size=14, ha='center')
             ax0.text(0.5, 0.45, 'Atmospheric Radiation Measurement User Facility', size=12,
                      ha='center')

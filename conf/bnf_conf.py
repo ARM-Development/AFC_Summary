@@ -18,7 +18,7 @@ conf = {
         'asi': {'dsname': 'asiskycoverM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60},
-        'ecor': {'dsname': '30ecorM1.b1', 't_delta': 30},
+        'ecor': {'dsname': 'ecorsfM1.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sM1.b1'},
         'hsrl': {'dsname': 'hsrlM1.a1'},
         'irt': {'dsname': 'irtM1.b1'},

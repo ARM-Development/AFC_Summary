@@ -16,7 +16,7 @@ conf = {
     'instruments':{
         'aeri': {'dsname': 'aerisummaryS30.b1'},
         'mwr3c': {'dsname': 'mwr3cS30.b1'},
-        'ecor': {'dsname': '30ecorS30.b1', 't_delta': 30},
+        'ecor': {'dsname': 'ecorsfS30.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sS30.b1'},
         'irt': {'dsname': 'irtS30.b1'},
         'met': {'dsname': 'metS30.b1'},
