@@ -43,7 +43,7 @@ conf = {
         'mpl': {'dsname': 'mplpolfsM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'rl': {'dsname': 'rlM1.a0'},
-        'rwp': {'dsname': 'bnf915rwpprecipavghiresM1.a1'},
+        'rwp': {'dsname': '915rwpprecipavghiresM1.a1'},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
         'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./3},
         'vdis': {'dsname': 'vdisM1.b1'},
