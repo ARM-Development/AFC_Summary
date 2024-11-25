@@ -14,13 +14,12 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'aeri': {'dsname': 'aerisummaryS30.b1'},
-        'mwr3c': {'dsname': 'mwr3cS30.b1'},
-        'ecor': {'dsname': 'ecorsfS30.b1', 't_delta': 30},
+        'ecor': {'dsname': 'ecorsfS30.b1', 't_delta': 30, 'num_workers': 1},
         'gndrad': {'dsname': 'gndrad60sS30.b1'},
         'irt': {'dsname': 'irtS30.b1'},
         'met': {'dsname': 'metS30.b1'},
         'mfrsr': {'dsname': 'mfrsr7nchS30.b1'},
+        'rwp': {'dsname': 'bnf915rwpprecipavghiresS30.a1'},
         'sebs': {'dsname': 'sebsS30.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sS30.b1'},
         'stamp': {'dsname': 'stampS30.b1', 't_delta': 30},
