@@ -7,7 +7,7 @@ conf = {
     'facility': 'M1',
     'start_date': '2021-10-01',
     'end_date': '2022-10-01',
-    'outname': '/home/theisen/www/afc_summary/hou_tables_linear.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/hou/hou_M1_data_availability.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'data_path': '/data/archive',
@@ -16,7 +16,7 @@ conf = {
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'dl': {'dsname': 'dlfptM1.b1'},
+        'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60},
         'ecor': {'dsname': '30ecorM1.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sM1.b1'},
         'gndirt': {'dsname': 'gndirtM1.b1'},

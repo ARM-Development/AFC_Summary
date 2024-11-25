@@ -320,6 +320,7 @@ if __name__ == '__main__':
 
         dsname = conf['instruments'][inst[ii]]['dsname']
         ds = conf['site'] + dsname
+        print(ds)
 
         dqr = get_dqr(ds)
         dqr_no = []
