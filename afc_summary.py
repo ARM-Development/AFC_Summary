@@ -131,7 +131,6 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
         files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*cdf']))
 
     files = sorted(files)
-    print(files)
     # Set time delta to 1 minute if not specified
     if t_delta is None:
         t_delta = 1
