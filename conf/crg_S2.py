@@ -7,7 +7,7 @@ conf = {
     'facility': 'S2',
     'start_date': '2024-11-01',
     'end_date': '2025-11-30',
-    'outname': '/home/theisen/Code/AFC_Summary/images/crg_s2_data_availability.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/crg/crg_s2_data_availability.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'data_path': '/data/archive',
