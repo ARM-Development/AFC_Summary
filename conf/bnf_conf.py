@@ -38,7 +38,7 @@ conf = {
         'irt': {'dsname': 'irtM1.b1'},
         'ldis': {'dsname': 'ldM1.b1'},
         'maws': {'dsname': 'mawsM1.b1'},
-        'met': {'dsname': 'metM1.b1'},
+        'met': {'dsname': 'metM1.b1', 'workers': 1},
         'mfrsr': {'dsname': 'mfrsr7nchM1.b1'},
         'mpl': {'dsname': 'mplpolfsM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
