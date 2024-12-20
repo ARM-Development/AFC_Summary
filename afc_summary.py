@@ -283,7 +283,7 @@ if __name__ == '__main__':
     if chart_style == 'linear':
         nrows = 20
         ncols = 4
-        tw = 35
+        tw = 20
         yi_spacing = 0.2
         fs = 6
         share_x = True
