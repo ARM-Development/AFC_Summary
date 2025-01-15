@@ -30,7 +30,7 @@ conf = {
         'so2': {'dsname': 'aosso2M1.b1'},
         'uhsas': {'dsname': 'aosuhsasM1.b1'},
         'aeri': {'dsname': 'aerisummaryM1.b1'},
-        'asi': {'dsname': 'asiskycoverM1.b1'},
+        #'asi': {'dsname': 'asiskycoverM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, 'workers': 1},
         'gndrad': {'dsname': 'gndrad60sM1.b1'},
@@ -45,7 +45,7 @@ conf = {
         'rl': {'dsname': 'rlM1.a0'},
         'rwp': {'dsname': '915rwpprecipavghiresM1.a1', 't_delta': 10},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
-        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./3},
+        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./2},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
     }
