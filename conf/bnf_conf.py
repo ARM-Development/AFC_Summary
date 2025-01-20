@@ -39,7 +39,7 @@ conf = {
         'ldis': {'dsname': 'ldM1.b1'},
         'maws': {'dsname': 'mawsM1.b1'},
         'met': {'dsname': 'metM1.b1', 'workers': 1},
-        'mfrsr': {'dsname': 'mfrsr7nchM1.b1'},
+        'mfrsr': {'dsname': 'mfrsr7nchM1.b1', 't_delta': 5},
         'mpl': {'dsname': 'mplpolfsM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'rl': {'dsname': 'rlM1.a0'},
