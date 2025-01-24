@@ -18,7 +18,7 @@ conf = {
         'aosmet': {'dsname': 'aosmetM1.a1'},
         'aps': {'dsname': 'aosapsM1.b1'},
         'caps': {'dsname': 'aoscaps3wM1.b1'},
-        'ccn': {'dsname': 'aosccn2colaavgM1.b1', 't_delta': 5},
+        'ccn': {'dsname': 'aosccn2colaavgM1.b1', 't_delta': 20},
         'co-analyzer': {'dsname': 'aoscoM1.b1'},
         'cpc': {'dsname': 'aoscpcf1mM1.b1'},
         'cpc': {'dsname': 'aoscpcu1mM1.b1'},
@@ -45,7 +45,7 @@ conf = {
         'rl': {'dsname': 'rlM1.a0', 't_delta': 5},
         'rwp': {'dsname': '915rwpprecipavghiresM1.a1', 't_delta': 10},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
-        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./4},
+        'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./2},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
     }
