@@ -37,7 +37,7 @@ conf = {
         'metwxt': {'dsname': 'metwxtS2.b1'},
         'mfrsr': {'dsname': 'mfrsr7nchS2.b1'},
         'mwr3c': {'dsname': 'mwr3cS2.b1'},
-        'pops': {'dsname': 'popsS2.b1'},
+        'pops': {'dsname': 'popsS2.a1'},
         'sebs': {'dsname': 'sebsS2.b1', 't_delta': 30},
         'sirs': {'dsname': 'sirsS2.b1'},
     }

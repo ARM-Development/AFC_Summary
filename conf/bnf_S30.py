@@ -18,7 +18,7 @@ conf = {
         'gndrad': {'dsname': 'gndrad60sS30.b1'},
         'irt': {'dsname': 'irtS30.b1'},
         'met': {'dsname': 'metS30.b1'},
-        'mfrsr': {'dsname': 'mfrsr7nchS30.b1'},
+        'mfrsr': {'dsname': 'mfrsr7nchS30.b1', 't_delta': 60},
         'rwp': {'dsname': '915rwpprecipavghiresS30.a1', 't_delta': 10},
         'sebs': {'dsname': 'sebsS30.b1', 't_delta': 30},
         'skyrad': {'dsname': 'skyrad60sS30.b1'},

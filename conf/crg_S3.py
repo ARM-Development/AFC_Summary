@@ -17,11 +17,10 @@ conf = {
         'dl': {'dsname': 'dlfptS3.b1', 't_delta': 60},
         'ecor': {'dsname': 'ecorsfS3.b1', 't_delta': 30},
         'ldis': {'dsname': 'ldS3.b1'},
-        'maws': {'dsname': 'mawsS3.b1'},
         'metwxt': {'dsname': 'metwxtS3.b1'},
         'mfrsr': {'dsname': 'mfrsr7nchS3.b1'},
         'mwr': {'dsname': 'mwrlosS3.b1'},
-        'pops': {'dsname': 'popsS3.b1'},
+        'pops': {'dsname': 'popsS3.a1'},
         'sebs': {'dsname': 'sebsS3.b1', 't_delta': 30},
         'sirs': {'dsname': 'sirsS3.b1'},
     }
