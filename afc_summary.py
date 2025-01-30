@@ -314,7 +314,6 @@ if __name__ == '__main__':
     dqr_tab = []
     axes = None
     for ii in range(len(inst)):
-        print(inst[ii])
         if ct ==  0:
             fig = plt.figure(figsize=(8.27, 11.69), constrained_layout=True, dpi=100)
             gs = fig.add_gridspec(nrows, ncols)
@@ -467,12 +466,11 @@ if __name__ == '__main__':
         ax1.set_xlim([pd.to_datetime(c_start), pd.to_datetime(c_end) + pd.Timedelta('1 days')])
 
         ct += 1
-        print(ct, nrows)
-        if ct == nrows:
+        if (ct == nrows) and (len(inst) != ct - 2):
             pdf_pages.savefig(fig)
             ct =  0
             axes = None
-    #pdf_pages.savefig(fig)
+    pdf_pages.savefig(fig)
     fig.clf()
 
     if conf['dqr_table'] is True:
