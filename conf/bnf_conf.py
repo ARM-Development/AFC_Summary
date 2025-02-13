@@ -7,7 +7,7 @@ conf = {
     'facility': 'M1',
     'start_date': '2024-9-01',
     'end_date': '2025-10-01',
-    'outname': '/home/theisen/Code/AFC_Summary/images/bnf/bnf_data_avail.pdf', #options are png, pdf, etc
+    'outname': '/home/theisen/Code/AFC_Summary/images/bnf/bnf_M1_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'data_path': '/data/archive',
@@ -28,6 +28,7 @@ conf = {
         'psap': {'dsname': 'aospsap3w1mM1.b1'},
         'smps': {'dsname': 'aossmpsM1.b1', 't_delta': 30},
         'so2': {'dsname': 'aosso2M1.b1'},
+        'sp2': {'dsname': 'aossp2xrM1.b1'},
         'uhsas': {'dsname': 'aosuhsasM1.b1'},
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         #'asi': {'dsname': 'asiskycoverM1.b1'},
