@@ -34,9 +34,9 @@ conf = {
         #'tsi': {'dsname': 'tsiskycoverM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
-        'aps': {'dsname': 'aosapsS3.a1'},
+        'aps': {'dsname': 'aosapsS3.b1'},
         'sp2': {'dsname': 'aossp2bc60sS3.b1'},
-        'uhsas': {'dsname': 'aosuhsaS3.b1'},
+        'uhsas': {'dsname': 'aosuhsasS3.b1'},
         'aosmet': {'dsname': 'aosmetS2.a1'},
     }
 }
