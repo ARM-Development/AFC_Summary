@@ -30,7 +30,7 @@ conf = {
         'so2': {'dsname': 'aosso2S2.b1'},
         'uhsas': {'dsname': 'aosuhsasS2.b1'},
         'ceil': {'dsname': 'ceilS2.b1'},
-        'dl': {'dsname': 'dlfptS2.b1', 't_delta': 120},
+        'dl': {'dsname': 'dlfptS2.b1', 't_delta': 300},
         'ecor': {'dsname': 'ecorsfS2.b1', 't_delta': 30},
         'ldis': {'dsname': 'ldS2.b1'},
         'maws': {'dsname': 'mawsS2.b1'},

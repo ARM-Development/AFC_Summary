@@ -14,7 +14,7 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'dl': {'dsname': 'dlfptS3.b1', 't_delta': 60},
+        'dl': {'dsname': 'dlfptS3.b1', 't_delta': 300},
         'ecor': {'dsname': 'ecorsfS3.b1', 't_delta': 30},
         'ldis': {'dsname': 'ldS3.b1'},
         'metwxt': {'dsname': 'metwxtS3.b1'},
