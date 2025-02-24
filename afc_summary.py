@@ -32,7 +32,6 @@ def get_dqr(ds):
     # Build URL and call through requests
     url = ''.join(("https://dqr-web-service.svcs.arm.gov/dqr_qc/", ds, '/incorrect,suspect,missing'))
     r = requests.get(url=url)
-
     docs = json.loads(r.text)
 
     # Run through the returns and compile data
