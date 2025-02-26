@@ -494,7 +494,9 @@ if __name__ == '__main__':
 
     if conf['doi_table'] is True:
         header = ['Instrument', 'DOI']
-        num_page = 15
+        num_page = 17
+        if site == 'bnf':
+            num_page = 13
         for ii in range(int(np.ceil(len(doi_tab)/num_page))):
             fig = plt.figure(figsize=(8.27, 11.69), dpi=100)
             ax  = fig.add_subplot()
