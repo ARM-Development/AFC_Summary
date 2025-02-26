@@ -414,7 +414,7 @@ if __name__ == '__main__':
             ds_str = '\n'.join(textwrap.wrap(ds_str, width=tw))
             ax0.text(0, yi, 'Datastream: ' + ds_str, size=fs, va='top')
 
-            yi -= yi_spacing *  1.15
+            yi -= yi_spacing *  1.5
             if len(ds_str) > tw:
                yi -= yi_spacing * np.floor(len(ds_str)/tw)
             if conf['doi_table'] is False:
