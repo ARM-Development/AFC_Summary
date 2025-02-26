@@ -17,7 +17,7 @@ conf = {
         'acsm': {'dsname': 'aosacsmtofspecM1.a1', 't_delta': 10},
         'aosmet': {'dsname': 'aosmetM1.a1'},
         'aps': {'dsname': 'aosapsM1.b1'},
-        'caps': {'dsname': 'aoscaps3wM1.b1'},
+        'caps-pmex': {'dsname': 'aoscaps3wM1.b1'},
         'ccn': {'dsname': 'aosccn2colaavgM1.b1', 't_delta': 20},
         'co-analyzer': {'dsname': 'aoscoM1.b1'},
         'cpc': {'dsname': 'aoscpcf1mM1.b1'},
