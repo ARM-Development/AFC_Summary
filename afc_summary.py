@@ -414,7 +414,7 @@ if __name__ == '__main__':
             ds_str = '\n'.join(textwrap.wrap(ds_str, width=tw))
             ax0.text(0, yi, 'Datastream: ' + ds_str, size=fs, va='top')
 
-            yi -= yi_spacing *  1.5
+            yi -= yi_spacing *  1.1
             if len(ds_str) > tw:
                yi -= yi_spacing * np.floor(len(ds_str)/tw)
             if conf['doi_table'] is False:
@@ -494,7 +494,7 @@ if __name__ == '__main__':
 
     if conf['doi_table'] is True:
         header = ['Instrument', 'DOI']
-        num_page = 17
+        num_page = 16
         for ii in range(int(np.ceil(len(doi_tab)/num_page))):
             fig = plt.figure(figsize=(8.27, 11.69), dpi=100)
             ax  = fig.add_subplot()
