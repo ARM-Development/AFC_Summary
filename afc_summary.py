@@ -495,8 +495,10 @@ if __name__ == '__main__':
     if conf['doi_table'] is True:
         header = ['Instrument', 'DOI']
         num_page = 17
+        scale = 3
         if site == 'bnf':
-            num_page = 15
+            num_page = 13
+            scale = 4
         for ii in range(int(np.ceil(len(doi_tab)/num_page))):
             fig = plt.figure(figsize=(8.27, 11.69), dpi=100)
             ax  = fig.add_subplot()
@@ -509,7 +511,7 @@ if __name__ == '__main__':
                              loc='best', colWidths=cw, cellLoc='left')
             table.auto_set_font_size(False)
             table.set_fontsize(8)
-            table.scale(1,4)
+            table.scale(1, scale)
             plt.subplots_adjust(top=0.9, left=0.025, right=0.975)
             pdf_pages.savefig(fig)
             fig.clf()
