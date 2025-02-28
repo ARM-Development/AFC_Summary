@@ -288,7 +288,7 @@ if __name__ == '__main__':
         share_x = True
         if conf['info_style'] == 'simple':
             fs = 9
-            tw = 50
+            tw = 25
             yi_spacing = 0.275
     elif chart_style == '2D':
         nrows = 8
