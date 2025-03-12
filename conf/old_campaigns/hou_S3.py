@@ -5,7 +5,7 @@
 conf = {
     'site': 'hou',
     'facility': 'S3',
-    'start_date': '2021-02-01',
+    'start_date': '2022-05-01',
     'end_date': '2022-10-01',
     'outname': '/home/theisen/Code/AFC_Summary/images/hou/hou_S3_data_availability.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
