@@ -23,6 +23,5 @@ conf = {
         'met': {'dsname': 'metS3.b1'},
         'mwr': {'dsname': 'mwrlosS3.b1'},
         'mwr3c': {'dsname': 'mwr3cS3.b1'},
-        'sonde': {'dsname': 'sondewnpnS3.b1', 't_delta': 1440./2.},
     }
 }
