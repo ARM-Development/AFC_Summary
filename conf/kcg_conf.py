@@ -16,7 +16,7 @@ conf = {
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60},
+        #'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, "workers": 1},
         'ecor': {'dsname': 'ecorsfM1.b1', 't_delta': 30},
         'irt': {'dsname': 'irtM1.b1'},
         'ldis': {'dsname': 'ldM1.b1'},
