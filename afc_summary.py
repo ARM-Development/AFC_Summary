@@ -83,15 +83,17 @@ def get_metadata(ds, return_fac=False):
     metadata_url = 'https://adc.arm.gov/elastic/metadata/_search?q=datastream:' + ds
     metadata_url += '&_source=instrument_name_text,facility_name&filter_path=hits.hits._source&size=1'
     r = requests.get(url=metadata_url)
-    response = r.json()['hits']['hits']
+    response = r.json()['hits']['hits'][0]['_source']
 
+    description = response['instrument_name_text']
+    if return_fac:
+        description = response['facility_name']
     try:
         description = response['instrument_name_text']
         if return_fac:
             description = response['facility_name']
     except:
         description = ds
-
     return description
 
 
@@ -355,7 +357,6 @@ if __name__ == '__main__':
         if 'workers' in conf['instruments'][inst[ii]]:
             workers = conf['instruments'][inst[ii]]['workers']
 
-        print(workers)
         # Set up the initial title of the doc
         if ii == 0:
             ax0 = fig.add_subplot(gs[ct, :])
@@ -388,7 +389,6 @@ if __name__ == '__main__':
         doi = get_doi(site, dsname, c_start, c_end)
         if conf['doi_table'] is True:
             doi_tab.append([inst[ii].upper(), '\n'.join(textwrap.wrap(doi, width=90))])
-        description = get_metadata(ds)
 
         # Add Subplot and start adding text
         # Just text on this plot
