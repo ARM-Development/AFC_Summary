@@ -142,10 +142,11 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
 
     # Read data for primary datastream
     if len(files) > 0:
-        try:
-            obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
-        except ValueError: 
-            obj = act.io.arm.read_arm_netcdf(files[0], coords=['time'], compat='override', parallel=False)
+        obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
+        #try:
+        #    obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
+        #except ValueError: 
+        #    obj = act.io.arm.read_arm_netcdf(files[0], coords=['time'], compat='override', parallel=False)
         obj = obj.sortby('time')
     else:
         obj = None
@@ -372,11 +373,12 @@ if __name__ == '__main__':
         # Dask loop for multiprocessing
         # workers should be set to 1 in the conf file for radars 
         task = []
+        results = []
         for jj, d in enumerate(c_dates):
             #task.append(get_da(site, dsname, dsname2, t_delta, d.strftime('%Y%m%d'), dqr))
-            task.append(dask.delayed(get_da)(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
-            #get_da(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end)
-        results = dask.compute(*task, num_workers=workers)
+            #task.append(dask.delayed(get_da)(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
+            results.append(get_da(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
+        #results = dask.compute(*task, num_workers=workers)
 
         # Get data from dask and create images for display
         t_delta = int(stats.mode([r['t_delta'] for r in results])[0])
