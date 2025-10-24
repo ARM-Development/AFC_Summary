@@ -142,7 +142,7 @@ def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
 
     # Read data for primary datastream
     if len(files) > 0:
-        obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
+        obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False, data_vars='minimal')
         #try:
         #    obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
         #except ValueError: 

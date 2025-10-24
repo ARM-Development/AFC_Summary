@@ -14,7 +14,7 @@ import subprocess
 import pandas as pd
 
 # Set site for processing
-site = 'bnf'
+site = 'kcg'
 dirs = glob.glob('/data/archive/' + site + '/*')
 dirs.sort()
 

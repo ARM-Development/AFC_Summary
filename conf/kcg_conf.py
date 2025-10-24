@@ -5,8 +5,8 @@
 conf = {
     'site': 'kcg',
     'facility': 'M1',
-    'start_date': '2024-02-21',
-    'end_date': '2025-06-14',
+    'start_date': '2024-04-15',
+    'end_date': '2025-10-15',
     'outname': '/home/theisen/Code/AFC_Summary/images/kcg/kcg_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
@@ -27,7 +27,7 @@ conf = {
         'mpl': {'dsname': 'mplpolfsM1.b1'},
         'mwr': {'dsname': 'mwrlosM1.b1'},
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
-        'rwp': {'dsname': '1290rwpwindconM1.a1', 't_delta': 60},
+        #'rwp': {'dsname': '1290rwpwindconM1.a1', 't_delta': 60},
         'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
         'sirs': {'dsname': 'sirsM1.b1'},
         'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./2},
