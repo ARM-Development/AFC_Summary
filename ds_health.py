@@ -15,7 +15,7 @@ import pandas as pd
 
 # Set site for processing
 site = 'kcg'
-dirs = glob.glob('/data/archive/' + site + '/*')
+dirs = glob.glob('/data/archive/' + site + '/*skyrad20s*')
 dirs.sort()
 
 # Set directories to exclude if there are image files or high-frequency files
@@ -46,7 +46,7 @@ for d in dirs:
     data[d] = {'n_split_files': len(idx[0]), 'n_days': len(counts.keys()), 'split_files': split_files}
 
     # User Brian's script to calculate overlap/reproc issues/etc...
-    arg = '/home/ermold/apps/el7/ermold/bin/nc_find_overlaps ' + d + '/*'
+    arg = '/home/ermold/apps/el9/ermold/bin/nc_find_overlaps ' + d + '/*'
     results = subprocess.Popen(arg, shell=True, stdout=subprocess.PIPE)
     data[d].update({'reproc_files': []})
     data[d].update({'delete_files': []})
@@ -77,10 +77,10 @@ for d in dirs:
     #    df['file_per'].append(100 - 100. * (data[d]['n_split_files'] / data[d]['n_days'] +(data[d]['n_unknown_files'] + data[d]['n_reproc_files'] + data[d]['n_delete_files']) / data[d]['n_files']))
     #else:
     #    df['file_per'].append(0)
-
+    print(data)
     all_files = data[d]['split_files'] + data[d]['unknown_files'] + data[d]['reproc_files'] + data[d]['delete_files']
     df['score'].append(100 - 100. * len(np.unique(all_files)) / len(files))
 
 df = pd.DataFrame(data=df)
 print(df.sort_values(by=['score']).to_string())
-df.to_csv('score.csv', sep='\t')
+df.to_csv('score.csv', sep=' ')
