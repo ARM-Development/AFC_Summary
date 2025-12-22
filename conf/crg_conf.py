@@ -28,7 +28,7 @@ conf = {
         'mwr3c': {'dsname': 'mwr3cM1.b1'},
         'nfov': {'dsname': 'nfov2chM1.b1'},
         'pops': {'dsname': 'popsM1.a1'},
-        'rwp': {'dsname': '915rwpprecipmeanhighM1.a1', 't_delta': 10},
+        'rwp': {'dsname': '915rwpprecipmeanhighM1.a1', 'dsname2': 'crg915rwpprecipmomM1.a0', 't_delta': 10},
         'sirs': {'dsname': 'sirsM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
