@@ -85,4 +85,4 @@ print(df.sort_values(by=['score']).to_string())
 df.to_csv('score.csv', sep=' ')
 
 for d in data:
-    print(data[d]['n_unknown_files'], data[d]['n_reproc_files'], data[d]['n_delete_files'])
+    print(d, data[d]['n_unknown_files'], data[d]['n_reproc_files'], data[d]['n_delete_files'])
