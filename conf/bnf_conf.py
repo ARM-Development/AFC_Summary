@@ -5,9 +5,9 @@
 conf = {
     'site': 'bnf',
     'facility': 'M1',
-    'start_date': '2025-1-01',
-    'end_date': '2025-12-31',
-    'outname': '/home/theisen/Code/AFC_Summary/images/bnf/bnf_M1_data_avail_2025.pdf', #options are png, pdf, etc
+    'start_date': '2026-1-01',
+    'end_date': '2026-12-31',
+    'outname': '/home/theisen/Code/AFC_Summary/images/bnf/bnf_M1_data_avail_2026.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
     'data_path': '/data/archive',
