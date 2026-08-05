@@ -5,8 +5,8 @@
 conf = {
     'site': 'crg',
     'facility': 'S2',
-    'start_date': '2024-10-01',
-    'end_date': '2025-10-01',
+    'start_date': '2024-12-01',
+    'end_date': '2025-01-01',
     'outname': '/home/theisen/Code/AFC_Summary/images/test.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
@@ -14,6 +14,6 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'dl': {'dsname': 'dlfptS2.b1', 't_delta': 300},
+        'dl': {'dsname': 'dlfptS2.b1', 't_delta': 1},
     }
 }
