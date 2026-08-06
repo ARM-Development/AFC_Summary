@@ -21,7 +21,7 @@ conf = {
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, "workers": 1},
         'ecor': {'dsname': 'ecorsfM1.b1', 't_delta': 30},
         'gndirt': {'dsname': 'gndirtM1.b1'},
-        'inp': {'dsname': 'inpS3.a1', 'override_delta': 1440},
+        'ins': {'dsname': 'inpS3.a1', 'override_delta': 1440},
         'irt': {'dsname': 'irtM1.b1'},
         'ldis': {'dsname': 'ldM1.b1'},
         'maws': {'dsname': 'mawsM1.b1'},
@@ -47,6 +47,6 @@ conf = {
         'ccn': {'dsname': 'ccn100X30.a1'},
         'cpc': {'dsname': 'cpcX30.a1'},
         'cpcu': {'dsname': 'cpcuX30.a1'},
-        'o3': {'dsname': 'o3X30.a1'},
+        'ozone': {'dsname': 'o3X30.a1'},
     }
 }
