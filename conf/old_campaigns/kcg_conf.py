@@ -15,7 +15,7 @@ conf = {
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
-        'asi': {'dsname': 'asiskycoverM1.b1', 't_delta': 1},
+        'asi': {'dsname': 'asiskycoverM1.b1', 't_delta': 1, 'override_delta': 1440},
         'ceil': {'dsname': 'ceilM1.b1'},
         'csphot': {'dsname': 'csphotaodfiltv3M1.a1', 'override_delta': 60},
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, "workers": 1},
