@@ -1,528 +1,844 @@
-import act
-import requests
-import json 
-import glob
-import pandas as pd
-import datetime as dt
-import numpy as np
-import xarray as xr
-import dask
-import matplotlib.pyplot as plt
-import textwrap
+"""Create ARM field-campaign data-availability summary PDFs.
+
+This optimized refactor of AFC_Summary/afc_summary.py uses direct netCDF4 time reads, integer binning, Dask parallelism, and per-file caching. It preserves the
+existing configuration-file interface while separating configuration, data
+access, availability calculations, and plotting into testable functions.
+"""
+
+from __future__ import annotations
+
 import argparse
-import importlib
-from scipy import stats
-from matplotlib.dates import DateFormatter
-from matplotlib.dates import HourLocator
+import datetime as dt
+import importlib.util
+import textwrap
+import warnings
+import re
+import hashlib
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterable
+
+import act
+from netCDF4 import Dataset, num2date
+
+try:
+    from dask import compute, delayed
+except ImportError:  # Optional fallback for environments without Dask.
+    compute = None
+    delayed = None
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import ListedColormap
-from matplotlib import cm
+from matplotlib.dates import DateFormatter, HourLocator
+from scipy import stats
 
 
-def get_dqr(ds):
-    """
-    Queries DQR webservice for the datastream name passed in
-
-    Parameters
-    ----------
-    ds : str
-        ARM datastream name (ie, sgpmetE13.b1).
-
-    """
-    # Build URL and call through requests
-    url = ''.join(("https://dqr-web-service.svcs.arm.gov/dqr_qc/", ds, '/incorrect,suspect,missing'))
-    r = requests.get(url=url)
-    docs = json.loads(r.text)
-
-    # Run through the returns and compile data
-    num = []
-    sdate = []
-    edate = []
-    code = []
-    sub = []
-    if ds in docs:
-        docs = docs[ds]
-        for quality_category in docs:
-            for dqr_number in docs[quality_category]:
-                for time_range in docs[quality_category][dqr_number]['dates']:
-                    starttime = np.datetime64(time_range['start_date'])
-                    if time_range['end_date'] != "None":
-                        endtime = np.datetime64(time_range['end_date'])
-                    else:
-                        endtime = dt.datetime.strptime('3001-01-01', '%Y-%m-%d')
-
-                    num.append(dqr_number)
-                    sdate.append(starttime)
-                    edate.append(endtime)
-                    code.append(quality_category)
-                    sub.append(docs[quality_category][dqr_number]['subject'])
-
-    return {'dqr_num': num, 'sdate': sdate, 'edate': edate, 'code': code, 'subject': sub}
+DQR_URL = "https://dqr-web-service.svcs.arm.gov/dqr_qc/{datastream}/incorrect,suspect,missing"
+DOI_URL = "https://adc.arm.gov/citationservice/citation/inst-class"
+METADATA_URL = "https://adc.arm.gov/elastic/metadata/_search"
+OPEN_ENDED_DQR = pd.Timestamp("3001-01-01")
+DQR_CODES = {"Suspect": 2, "Incorrect": 3, "Missing": 4}
+DQR_COLORS = {2: "yellow", 3: "red", 4: "grey"}
+AVAILABILITY_CMAP = ListedColormap(["white", "cornflowerblue", "yellow", "red"])
 
 
-def get_doi(site, dsname, c_start, c_end):
-    # Get DOI Information from ARM's API
-    doi_url = 'https://adc.arm.gov/citationservice/citation/inst-class?id=' + inst[ii] + '&citationType=apa'
-    doi_url += '&site=' + site
-    doi_url += '&dataLevel=' + dsname.split('.')[-1]
-    doi_url += '&startDate=' + c_start
-    doi_url += '&endDate=' + c_end
-    doi = requests.get(url=doi_url)
-    if len(doi.text) > 0:
-        doi = doi.json()['citation']
-    else:
-        doi = 'N/A'
-    return doi
+@dataclass(frozen=True)
+class DateRange:
+    start: pd.Timestamp
+    end: pd.Timestamp
+
+    @property
+    def dates(self) -> pd.DatetimeIndex:
+        return pd.date_range(self.start, self.end + pd.Timedelta(days=1), freq="D")
+
+    @property
+    def start_text(self) -> str:
+        return self.start.strftime("%Y-%m-%d")
+
+    @property
+    def end_text(self) -> str:
+        return self.end.strftime("%Y-%m-%d")
 
 
-def get_metadata(ds, return_fac=False):
-    # Get Metadata Information, particularly the description
-    #metadata_url = 'https://adc.arm.gov/solr8/metadata/select?q=datastream%3A' + ds
-    #r = requests.get(url=metadata_url)
-    #response = r.json()['response']
-    metadata_url = 'https://adc.arm.gov/elastic/metadata/_search?q=datastream:' + ds
-    metadata_url += '&_source=instrument_name_text,facility_name&filter_path=hits.hits._source&size=1'
-    r = requests.get(url=metadata_url)
-    response = r.json()['hits']['hits'][0]['_source']
-
-    description = response['instrument_name_text']
-    if return_fac:
-        description = response['facility_name']
-    try:
-        description = response['instrument_name_text']
-        if return_fac:
-            description = response['facility_name']
-    except:
-        description = ds
-    return description
+@dataclass(frozen=True)
+class Layout:
+    nrows: int
+    ncols: int
+    wrap_width: int
+    text_spacing: float
+    font_size: int
 
 
-def get_da(site, dsname, dsname2, data_path, t_delta, d, dqr, c_start, c_end):
-    """
-    Function to calculate data availability for a particular instrument
-
-    Parameters
-    ----------
-    site : str
-        ARM Site ID
-    dsname : str
-        Datastream name to use, minus site
-    dsname2 : str
-        Secondary datastream name to use, minus site
-        For instance if dsname = dlfptM1.b1, dsname2 = dlppiM1.b1
-    t_delta : float
-        Pre-defined time delta to use, otherwise resample to 1 minute
-    d : str
-        Date to process DA for
-    dqr : dict
-        Dictionary from get_dqr.  This allows for DQRing of data without
-        multiple pings of the DQR web service at once
-    c_start : str
-        Campaign start date
-    c_end : str
-        Campaign end date
-
-    Returns
-    -------
-    dict
-        returns a dictionary of data and time deltas to use for plotting
-
-    """
-
-    # Get files for particular day, defaults to archive area for now
-    ds = site + dsname
-    files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*nc']))
-    if len(files) == 0:
-        files = glob.glob('/'.join([data_path, site, ds, ds + '*' + d + '*cdf']))
-
-    files = sorted(files)
-    # Set time delta to 1 minute if not specified
-    if t_delta is None:
-        t_delta = 1
-
-    # Read data for primary datastream
-    if len(files) > 0:
-        obj = act.io.arm.read_arm_netcdf(files, combine='nested', coords=['time'], concat_dim='time', join='outer', parallel=False, data_vars='minimal', compat='override')
-        #try:
-        #    obj = act.io.arm.read_arm_netcdf(files, coords=['time'], compat='override', parallel=False)
-        #except ValueError: 
-        #    obj = act.io.arm.read_arm_netcdf(files[0], coords=['time'], compat='override', parallel=False)
-        obj = obj.sortby('time')
-    else:
-        obj = None
-
-    # Read data for secondary datastream
-    if dsname2 is not None:
-        ds2 = site + dsname2
-        files2 = glob.glob('/data/archive/' + site + '/' + ds2 + '/' + ds2 + '*' + d + '*nc')
-        if len(files2) == 0:
-            files2 = glob.glob('/data/archive/' + site + '/' + ds2 + '/' + ds2 + '*' + d + '*cdf')
-        files2 = sorted(files2)
-        if len(files2) > 0:
-            obj2 = act.io.arm.read_arm_netcdf(files2, combine='nested', coords=['time'], compat='override')
-            obj2 = obj2.sortby('time')
-            if obj is not None:
-                obj = obj['time'].combine_first(obj2['time'])
-                obj2.close()
-            else:
-                obj = obj2
-    else:
-        dsname2 = None
-
-    # Set up dataframe with all expected times for day
-    d0 = pd.to_datetime(d)
-    d1 = d0 + dt.timedelta(days=1)
-    d_range = pd.date_range(d0, d1, freq=str(t_delta) + 'min')
-    df1 = pd.DataFrame({'counts': np.zeros(len(d_range))}, index=d_range)
-
-    # Join datasets with dataframe
-    code_map = {'Suspect':  2, 'Incorrect': 3, 'Missing': 4}
-    if len(files) > 0:
-        counts = obj['time'].resample(time=str(t_delta) + 'min').count().to_dataframe()
-        counts[counts > 1] = 1
-        dqr_counts = counts * 0.
-        # Flag data for  DQRs
-        # Work on passing DQR times to get_da to flag
-        for jj, d in enumerate(dqr['dqr_num']):
-            #dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
-            #dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
-            dqr_start = dqr['sdate'][jj]
-            dqr_end = dqr['edate'][jj]
-            # Check for open-ended DQRs
-            if dt.datetime(3000, 1, 1) < dqr_end:
-                dqr_end = dt.datetime.strptime(c_end, '%Y-%m-%d') + dt.timedelta(days=1)
-   
-            idx = (counts.index > dqr_start) & (counts.index < dqr_end)
-            idx = np.where(idx)[0]
-            assessment = dqr['code'][jj]
-            if len(idx) > 0:
-                dqr_counts.iloc[idx]  = code_map[assessment]
-
-        data = df1.join(counts)
-        data.loc[data['time'] > 0, 'time'] = 1
-        r_data = np.nan_to_num(data['time'].tolist())
-
-        dqr_data = df1.join(dqr_counts)
-        dqr_data.loc[dqr_data['time'] == 0, 'time'] = np.nan
-        dqr_data = dqr_data['time'].tolist()
-        obj.close()
-    else:
-        counts = df1
-        counts[counts > 1] = 1
-        dqr_counts = counts * 0.
-        # Flag data for  DQRs
-        # Work on passing DQR times to get_da to flag
-        for jj, d in enumerate(dqr['dqr_num']):
-            #dqr_start = dt.datetime.strptime(dqr['sdate'][jj], '%Y%m%d.%H%M%S')
-            #dqr_end = dt.datetime.strptime(dqr['edate'][jj], '%Y%m%d.%H%M%S')
-            dqr_start = dqr['sdate'][jj]
-            dqr_end = dqr['edate'][jj]
-            # Check for open-ended DQRs
-            if dt.datetime(3000, 1, 1) < dqr_end:
-                dqr_end = dt.datetime.strptime(c_end, '%Y-%m-%d') + dt.timedelta(days=1)
-   
-            idx = (counts.index > dqr_start) & (counts.index < dqr_end)
-            idx = np.where(idx)[0]
-            assessment = dqr['code'][jj]
-            if len(idx) > 0:
-                dqr_counts.iloc[idx]  = code_map[assessment]
-
-        data = df1
-        r_data = np.nan_to_num(data['counts'].tolist())
-
-        dqr_data = dqr_counts
-        dqr_data.loc[dqr_data.counts == 0, 'counts'] = np.nan
-        dqr_data = dqr_data.counts.tolist()
-
-    return {'data': r_data, 't_delta': t_delta, 'date': d0, 'dqr_data': dqr_data}
+@dataclass(frozen=True)
+class AvailabilityResult:
+    index: pd.DatetimeIndex
+    data: np.ndarray
+    dqr_data: np.ndarray
+    time_delta: float
 
 
-if __name__ == '__main__':
-    """
-    Main function to get information from configuration file and create DA plots
+class ArmClient:
+    """Small HTTP client for ARM metadata, DOI, and DQR services."""
 
-    Author : Adam Theisen
-    """
+    def __init__(self, timeout: int = 30, retries: int = 3) -> None:
+        self.timeout = timeout
+        self.session = requests.Session()
 
-    # Time trials
-    now = pd.Timestamp.now()
+        retry_policy = Retry(
+            total=retries,
+            connect=retries,
+            read=retries,
+            status=retries,
+            backoff_factor=1.0,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=frozenset({"GET"}),
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry_policy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
-    # Get configuration file passed in from command line
-    parser = argparse.ArgumentParser(description='Create campaign summary plots.')
-    parser.add_argument('-c', '--conf', type=str, required=True,
-                       help='Conf file to get information from')
-    args = parser.parse_args()
+    def _get_json(self, url: str, **kwargs: Any) -> Any:
+        response = self.session.get(url, timeout=self.timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
 
-    # Executes the config file so that the variables are accessible to this program
-    exec(open(args.conf).read())
+    def get_dqrs(self, datastream: str) -> pd.DataFrame:
+        """Return DQR records for a datastream without making 404 fatal.
 
-    # Get configuration information
-    site = conf['site']
-    inst = list(conf['instruments'].keys())
-    if 'data_path' in conf:
-        data_path = conf['data_path']
-    else:
-        data_path = '/data/archive'
-    if 'chart_style' in conf:
-        chart_style = conf['chart_style']
-    else:
-        chart_style = '2D'
+        The DQR API may return HTTP 404 with ``{"detail": "Not Found"}``
+        when no DQRs exist. Any unavailable or malformed DQR response is
+        therefore treated as an empty result so report generation can proceed.
+        """
+        url = DQR_URL.format(datastream=datastream)
+        columns = ["dqr_num", "start", "end", "code", "subject"]
+        empty = pd.DataFrame(columns=columns)
 
-    # Set date range for plots
-    if 'start_date' in conf:
-        c_start = conf['start_date']
-    if 'end_date' in conf:
-        c_end = conf['end_date']
-    if 'previous_days' in conf:
-        c_end = dt.date.today()
-        c_start = c_end - dt.timedelta(days=conf['previous_days'])
-        c_end = str(c_end)
-        c_start = str(c_start)
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+        except requests.RequestException as exc:
+            warnings.warn(
+                f"Unable to contact the DQR service for {datastream}: {exc}. "
+                "Continuing without DQR overlays.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return empty
 
-    start = pd.to_datetime(c_start)
-    end = pd.to_datetime(c_end)
-    c_dates = pd.date_range(start, end + dt.timedelta(days=1), freq='d')
+        # The service commonly uses 404 + {"detail": "Not Found"} to mean
+        # that there are no matching DQR records. Never call raise_for_status()
+        # in this method because that response is expected and non-fatal.
+        if response.status_code == 404:
+            return empty
 
-    # Set up plot layout.  Since it's a PDF, it's  8 plots per page
-    if 'info_style' not in conf:
-        conf['info_style'] = 'complex'
-    if chart_style == 'linear':
-        nrows = 20
-        ncols = 4
-        tw = 20
-        yi_spacing = 0.2
-        fs = 6
-        share_x = True
-        if conf['info_style'] == 'simple':
-            fs = 9
-            tw = 25
-            yi_spacing = 0.275
-    elif chart_style == '2D':
-        nrows = 8
-        ncols = 3
-        tw = 47
-        fs = 8
-        yi_spacing = 0.1
-        share_x = False
-    else:
-        raise ValueError('Please select linear or 2D for chart_style')
-    ct = 0
+        if response.status_code != 200:
+            warnings.warn(
+                f"DQR service returned HTTP {response.status_code} for "
+                f"{datastream}. Continuing without DQR overlays.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return empty
 
-    # Create pdf file
-    if 'outname' in conf:
-        filename = conf['outname']
-    ext = filename.split('.')[-1]
+        try:
+            payload = response.json()
+        except (requests.exceptions.JSONDecodeError, ValueError):
+            warnings.warn(
+                f"DQR service returned invalid JSON for {datastream}. "
+                "Continuing without DQR overlays.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return empty
 
-    pdf_pages = PdfPages(filename)
+        if not isinstance(payload, dict) or payload.get("detail") == "Not Found":
+            return empty
 
-    # Process each instrument
-    doi_tab = []
-    dqr_tab = []
-    axes = None
-    for ii in range(len(inst)):
-        if ct ==  0:
-            fig = plt.figure(figsize=(8.27, 11.69), constrained_layout=True, dpi=100)
-            gs = fig.add_gridspec(nrows, ncols)
+        stream_payload = payload.get(datastream, {})
+        if not isinstance(stream_payload, dict):
+            return empty
 
-        dsname = conf['instruments'][inst[ii]]['dsname']
-        ds = conf['site'] + dsname
-        print(ds)
-
-        dqr = get_dqr(ds)
-        dqr_no = []
-        if conf['dqr_table'] is True:
-            for jj, d  in enumerate(dqr['dqr_num']):
-                if dqr['dqr_num'][jj] in dqr_no:
+        rows: list[dict[str, Any]] = []
+        for category, reports in stream_payload.items():
+            if not isinstance(reports, dict):
+                continue
+            for number, report in reports.items():
+                if not isinstance(report, dict):
                     continue
-                dqr_no.append(dqr['dqr_num'][jj])
-                dqr_tab.append([ds, dqr['dqr_num'][jj], dqr['code'][jj], '\n'.join(textwrap.wrap(dqr['subject'][jj], width=50)),
-                                dqr['sdate'][jj], dqr['edate'][jj]])
-        dsname2 = None
-        ds2 = None
-        # Get secondary datastream if specified
-        if 'dsname2' in conf['instruments'][inst[ii]]:
-            dsname2 = conf['instruments'][inst[ii]]['dsname2']
-            ds2 = site + dsname2
+                for time_range in report.get("dates", []):
+                    if not isinstance(time_range, dict) or "start_date" not in time_range:
+                        continue
+                    end = time_range.get("end_date")
+                    rows.append(
+                        {
+                            "dqr_num": number,
+                            "start": pd.Timestamp(time_range["start_date"]),
+                            "end": (
+                                OPEN_ENDED_DQR
+                                if end in (None, "None")
+                                else pd.Timestamp(end)
+                            ),
+                            "code": category,
+                            "subject": report.get("subject", ""),
+                        }
+                    )
 
-        # Get time delta if specified
-        t_delta = None
-        if 't_delta' in conf['instruments'][inst[ii]]:
-            t_delta = conf['instruments'][inst[ii]]['t_delta']
+        return pd.DataFrame(rows, columns=columns)
 
-        if 'data_path' in conf['instruments'][inst[ii]]:
-            data_path = conf['instruments'][inst[ii]]['data_path']
+    def get_doi(
+        self,
+        instrument: str,
+        site: str,
+        datastream: str,
+        date_range: DateRange,
+    ) -> str:
+        params = {
+            "id": instrument,
+            "citationType": "apa",
+            "site": site,
+            "dataLevel": datastream.rsplit(".", 1)[-1],
+            "startDate": date_range.start_text,
+            "endDate": date_range.end_text,
+        }
+        try:
+            payload = self._get_json(DOI_URL, params=params)
+            return payload.get("citation", "N/A")
+        except (requests.RequestException, ValueError, AttributeError):
+            return "N/A"
 
-        # Get number of workers if defined.  Should be 1 worker for radars to
-        # avoid core dumps
-        workers = None
-        if 'workers' in conf['instruments'][inst[ii]]:
-            workers = conf['instruments'][inst[ii]]['workers']
+    def get_metadata(self, datastream: str, field: str = "instrument_name_text") -> str:
+        params = {
+            "q": f"datastream:{datastream}",
+            "_source": "instrument_name_text,facility_name",
+            "filter_path": "hits.hits._source",
+            "size": 1,
+        }
+        try:
+            payload = self._get_json(METADATA_URL, params=params)
+            source = payload["hits"]["hits"][0]["_source"]
+            return source.get(field, datastream)
+        except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
+            return datastream
 
-        # Set up the initial title of the doc
-        if ii == 0:
-            ax0 = fig.add_subplot(gs[ct, :])
-            ax0.set_frame_on(False)
-            ax0.get_xaxis().set_visible(False)
-            ax0.get_yaxis().set_visible(False)
-            description = get_metadata(ds, return_fac=True)
-            ax0.text(0.5, 0.99, '\n'.join(textwrap.wrap(description, width=70)), size=14, ha='center')
-            ax0.text(0.5, 0.45, 'Atmospheric Radiation Measurement User Facility', size=12,
-                     ha='center')
-            ct += 2
 
-        # Dask loop for multiprocessing
-        # workers should be set to 1 in the conf file for radars 
-        task = []
-        results = []
-        for jj, d in enumerate(c_dates):
-            #task.append(get_da(site, dsname, dsname2, t_delta, d.strftime('%Y%m%d'), dqr))
-            #task.append(dask.delayed(get_da)(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
-            results.append(get_da(site, dsname, dsname2, data_path, t_delta, d.strftime('%Y%m%d'), dqr, c_start, c_end))
-        #results = dask.compute(*task, num_workers=workers)
+def load_config(path: str | Path) -> dict[str, Any]:
+    """Load a Python configuration file without using ``exec``."""
+    path = Path(path).expanduser().resolve()
+    spec = importlib.util.spec_from_file_location("afc_summary_config", path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Unable to load configuration file: {path}")
 
-        # Get data from dask and create images for display
-        t_delta = int(stats.mode([r['t_delta'] for r in results])[0])
-        y_times = pd.date_range(start, start + dt.timedelta(days=1), freq=str(t_delta) + 'min')
-        y_times_time = np.array([ti.time() for ti in y_times])
-        img = [list(r['data']) for r in results]
-        dqr_img = [list(r['dqr_data']) for r in results]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
 
-        # Get DOI Information
-        doi = get_doi(site, dsname, c_start, c_end)
-        if conf['doi_table'] is True:
-            doi_tab.append([inst[ii].upper(), '\n'.join(textwrap.wrap(doi, width=90))])
+    if not hasattr(module, "conf") or not isinstance(module.conf, dict):
+        raise ValueError(f"Configuration file {path} must define a dictionary named 'conf'.")
+    return module.conf
 
-        # Add Subplot and start adding text
-        # Just text on this plot
-        ax0 = fig.add_subplot(gs[ct, 0])
-        ax0.set_frame_on(False)
-        ax0.get_xaxis().set_visible(False)
-        ax0.get_yaxis().set_visible(False)
-        yi = 0.95
-        if conf['info_style'] == 'simple':
-            ax0.text(0, yi, inst[ii].upper(), size=fs, va='top', weight='bold')
-            yi -= yi_spacing
-            ds_str = ds
-            if dsname2 is not None:
-                ds_str += ', ' + ds2
-            ds_str = '\n'.join(textwrap.wrap(ds_str, width=tw))
-            ax0.text(0, yi, ds_str, size=fs, va='top')
+
+def resolve_date_range(conf: dict[str, Any]) -> DateRange:
+    if "previous_days" in conf:
+        end = pd.Timestamp.today().normalize()
+        start = end - pd.Timedelta(days=int(conf["previous_days"]))
+    else:
+        try:
+            start = pd.Timestamp(conf["start_date"])
+            end = pd.Timestamp(conf["end_date"])
+        except KeyError as exc:
+            raise ValueError("Set start_date/end_date or previous_days in the configuration.") from exc
+
+    if end < start:
+        raise ValueError("end_date must be on or after start_date.")
+    return DateRange(start=start, end=end)
+
+
+def get_layout(chart_style: str, info_style: str) -> Layout:
+    if chart_style == "linear":
+        return Layout(
+            nrows=20,
+            ncols=4,
+            wrap_width=25 if info_style == "simple" else 20,
+            text_spacing=0.275 if info_style == "simple" else 0.2,
+            font_size=9 if info_style == "simple" else 6,
+        )
+    if chart_style == "2D":
+        return Layout(nrows=8, ncols=3, wrap_width=47, text_spacing=0.1, font_size=8)
+    raise ValueError("chart_style must be either 'linear' or '2D'.")
+
+
+def find_files_for_range(
+    data_path: str | Path,
+    site: str,
+    datastream: str,
+    date_range: DateRange,
+) -> list[str]:
+    """Find candidate files using year-specific ARM filename patterns."""
+    directory = Path(data_path) / site / datastream
+    if not directory.exists():
+        return []
+
+    candidates: set[Path] = set()
+    for year in range(date_range.start.year, date_range.end.year + 1):
+        for suffix in ("nc", "cdf"):
+            candidates.update(directory.glob(f"{datastream}.{year}*.{suffix}"))
+            candidates.update(directory.glob(f"{datastream}{year}*.{suffix}"))
+
+    # Some nonstandard files do not include the date after a period. Fall back
+    # to a full listing only when year-specific patterns found nothing.
+    if not candidates:
+        for suffix in ("nc", "cdf"):
+            candidates.update(directory.glob(f"{datastream}*.{suffix}"))
+
+    selected: list[str] = []
+    for path in sorted(candidates):
+        matches = re.findall(r"(?<!\d)(\d{8})(?!\d)", path.name)
+        if matches:
+            try:
+                file_date = pd.Timestamp(matches[-1])
+            except ValueError:
+                file_date = None
+            if file_date is not None and not (
+                date_range.start <= file_date <= date_range.end
+            ):
+                continue
+        selected.append(str(path))
+    return selected
+
+
+def _cache_path(
+    cache_dir: Path,
+    path: str,
+    stat: os.stat_result,
+    start_ns: int,
+    end_ns: int,
+    delta_ns: int,
+) -> Path:
+    token = "|".join(
+        [
+            str(Path(path).resolve()),
+            str(stat.st_size),
+            str(stat.st_mtime_ns),
+            str(start_ns),
+            str(end_ns),
+            str(delta_ns),
+        ]
+    )
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return cache_dir / f"{digest}.npy"
+
+
+def read_file_bins(
+    path: str,
+    *,
+    start_ns: int,
+    end_ns: int,
+    delta_ns: int,
+    cache_dir: str | None = None,
+) -> np.ndarray:
+    """Read only ``time`` and return unique occupied output-bin positions."""
+    file_path = Path(path)
+    stat = file_path.stat()
+    cache_path: Path | None = None
+
+    if cache_dir:
+        cache_root = Path(cache_dir).expanduser()
+        cache_root.mkdir(parents=True, exist_ok=True)
+        cache_path = _cache_path(
+            cache_root, path, stat, start_ns, end_ns, delta_ns
+        )
+        if cache_path.exists():
+            try:
+                return np.load(cache_path, allow_pickle=False)
+            except (OSError, ValueError):
+                cache_path.unlink(missing_ok=True)
+
+    with Dataset(path, mode="r") as nc:
+        if "time" not in nc.variables:
+            bins = np.array([], dtype=np.int64)
         else:
-            ax0.text(0, yi, '\n'.join(textwrap.wrap(description, width=tw)), size=fs, va='top')
-            yi -= yi_spacing 
-            if len(description) > tw:
-               yi -= yi_spacing * np.floor(len(description)/tw)
-            ax0.text(0, yi, 'ARM Name: ' + inst[ii].upper(), size=fs, va='top')
-
-            yi -= yi_spacing
-            ds_str = ds
-            if dsname2 is not None:
-                ds_str += ', ' + ds2
-            ds_str = '\n'.join(textwrap.wrap(ds_str, width=tw))
-            ax0.text(0, yi, 'Datastream: ' + ds_str, size=fs, va='top')
-
-            yi -= yi_spacing *  1.1
-            if len(ds_str) > tw:
-               yi -= yi_spacing * np.floor(len(ds_str)/tw)
-            if conf['doi_table'] is False:
-                ax0.text(0, yi, '\n'.join(textwrap.wrap(doi, width=tw)), va='top', size=fs)
-
-        # Plot out the DA on the right plots
-        newcmp = ListedColormap(['white', 'cornflowerblue', 'yellow', 'red'])
-        ax1 = fig.add_subplot(gs[ct, 1:], rasterized=True, sharex=axes)
-        if axes is None:
-            axes = ax1
-        if chart_style == '2D':
-            ax1.pcolormesh(c_dates, y_times, np.transpose(img), vmin=0, vmax=3,
-                           cmap=newcmp, shading='flat', zorder=0, edgecolors='face')
-            ax1.pcolor(c_dates, y_times, np.transpose(dqr_img), hatch='/', zorder=0, alpha=0)
-            ax1.yaxis.set_major_locator(HourLocator(interval=6))
-            ax1.yaxis.set_major_formatter(DateFormatter('%H:%M'))
-        elif chart_style == 'linear':
-            img = np.array(img).flatten()
-            x_times = [np.datetime64(c + dt.timedelta(hours=yt.hour, minutes=yt.minute)) for c in c_dates for yt in y_times]
-
-            idx = np.where(img > 0)[0]
-            time_delta = act.utils.determine_time_delta(np.array(x_times))
-            if len(idx) > 0:
-                barh_list_green = act.utils.reduce_time_ranges(np.array(x_times)[idx], time_delta=time_delta,
-                                                               broken_barh=True)
-                ax1.broken_barh(barh_list_green, (0, 1), facecolors='green')
-
-            dqr_img = np.array(dqr_img).flatten()
-            code_map = {'suspect':  2, 'incorrect': 3, 'missing': 4}
-            code_colors = {'suspect': 'yellow', 'incorrect': 'red', 'missing': 'grey'}
-            for code in code_map:
-                idx = np.where(dqr_img == code_map[code])[0]
-                if len(idx) == 0:
-                    continue
-                time_delta = act.utils.determine_time_delta(np.array(x_times))
-                barh_list = act.utils.reduce_time_ranges(np.array(x_times)[idx], time_delta=time_delta,
-                                                               broken_barh=True)
-                ax1.broken_barh(barh_list, (0, 1), facecolors=code_colors[code])
-
-            ax1.set_ylim([0,1])
-            ax1.get_yaxis().set_visible(False)
-            if ct == 0 or ii == 0:
-                ax1.xaxis.tick_top()
-                plt.xticks(fontsize=8)
+            variable = nc.variables["time"]
+            values = variable[:]
+            if values.size == 0:
+                bins = np.array([], dtype=np.int64)
             else:
-                ax1.get_xaxis().set_visible(False)
-            plt.subplots_adjust(top=0.95, left=0.02, right=0.96, hspace=0)
-        ax1.set_xlim([pd.to_datetime(c_start), pd.to_datetime(c_end) + pd.Timedelta('1 days')])
+                decoded = num2date(
+                    values,
+                    units=variable.units,
+                    calendar=getattr(variable, "calendar", "standard"),
+                    only_use_cftime_datetimes=False,
+                    only_use_python_datetimes=True,
+                )
+                times_ns = np.asarray(decoded, dtype="datetime64[ns]").astype(np.int64)
+                valid = (times_ns >= start_ns) & (times_ns < end_ns)
+                bins = np.unique((times_ns[valid] - start_ns) // delta_ns).astype(
+                    np.int64, copy=False
+                )
 
-        ct += 1
-        if (ct == nrows) and (len(inst) != ct - 2):
-            pdf_pages.savefig(fig)
-            ct =  0
-            axes = None
-    pdf_pages.savefig(fig)
-    fig.clf()
+    if cache_path is not None:
+        temporary = cache_path.with_suffix(f".{os.getpid()}.tmp.npy")
+        try:
+            np.save(temporary, bins, allow_pickle=False)
+            os.replace(temporary, cache_path)
+        except OSError:
+            temporary.unlink(missing_ok=True)
 
-    if conf['dqr_table'] is True:
-        header = ['Datastream', 'DQR', 'Quality', 'Subject', 'Start Date', 'End Date']
-        num_page = 30
-        for ii in range(int(np.ceil(len(dqr_tab)/num_page))):
-            fig = plt.figure(figsize=(8.27, 11.69), dpi=100)
-            ax  = fig.add_subplot()
-            fig.patch.set_visible(False)
-            ax.axis('off')
-            ax.axis('tight')
-            plt.title('ARM Data Quality Report (DQR) Table', y=1.)
-            cw = [0.165, 0.085, 0.08, 0.35, 0.145, 0.145]
-            table = ax.table(cellText=dqr_tab[slice(ii * num_page, (ii + 1) *  num_page)], colLabels=header,
-                             loc='best', colWidths=cw, cellLoc='left')
-            table.scale(1,1.7)
-            table.auto_set_font_size(False)
-            table.set_fontsize(7)
-            plt.subplots_adjust(top=0.95, left=0.02, right=0.98)
-            pdf_pages.savefig(fig)
-            fig.clf()
+    return bins
 
-    if conf['doi_table'] is True:
-        header = ['Instrument', 'DOI']
-        num_page = 17
-        scale = 3
-        if site == 'bnf':
-            num_page = 13
-            scale = 4
-        for ii in range(int(np.ceil(len(doi_tab)/num_page))):
-            fig = plt.figure(figsize=(8.27, 11.69), dpi=100)
-            ax  = fig.add_subplot()
-            fig.patch.set_visible(False)
-            ax.axis('off')
-            ax.axis('tight')
-            plt.title('ARM Data Object Identifier (DOI) Table', y=1.)
-            cw = [0.15, 0.8]
-            table = ax.table(cellText=doi_tab[slice(ii * num_page, (ii + 1) *  num_page)], colLabels=header,
-                             loc='best', colWidths=cw, cellLoc='left')
-            table.auto_set_font_size(False)
-            table.set_fontsize(8)
-            table.scale(1, scale)
-            plt.subplots_adjust(top=0.9, left=0.025, right=0.975)
-            pdf_pages.savefig(fig)
-            fig.clf()
 
-    pdf_pages.close()
+def read_occupied_bins(
+    files: Iterable[str],
+    *,
+    start_ns: int,
+    end_ns: int,
+    delta_ns: int,
+    use_dask: bool = True,
+    workers: int | None = None,
+    scheduler: str = "threads",
+    cache_dir: str | None = None,
+) -> list[np.ndarray]:
+    """Read occupied bins from files, optionally in parallel."""
+    paths = list(files)
+    if not paths:
+        return []
 
-    print(pd.Timestamp.now() - now)
+    kwargs = {
+        "start_ns": start_ns,
+        "end_ns": end_ns,
+        "delta_ns": delta_ns,
+        "cache_dir": cache_dir,
+    }
+    if use_dask and delayed is not None and compute is not None and len(paths) > 1:
+        tasks = [delayed(read_file_bins)(path, **kwargs) for path in paths]
+        return list(
+            compute(
+                *tasks,
+                scheduler=scheduler,
+                num_workers=max(1, int(workers or min(8, len(tasks)))),
+            )
+        )
+    return [read_file_bins(path, **kwargs) for path in paths]
+
+
+def normalize_time_delta(time_delta: int | float | None) -> tuple[float, pd.Timedelta]:
+    """Normalize a configured interval expressed in minutes.
+
+    Configuration files remain unchanged: ``t_delta`` is still an int or float
+    representing minutes. The pandas Timedelta is created only for internal
+    indexing and resampling operations.
+    """
+    value = 1.0 if time_delta is None else time_delta
+    try:
+        minutes = float(value)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "t_delta must be an int or float representing minutes"
+        ) from exc
+
+    if not np.isfinite(minutes) or minutes <= 0:
+        raise ValueError("t_delta must be a finite number greater than zero")
+
+    return minutes, pd.to_timedelta(minutes, unit="min")
+
+
+
+def get_configured_time_delta(options: dict[str, Any]) -> int | float | None:
+    """Return instrument time resolution in minutes.
+
+    Supports the historical AFC Summary key ``override_delta`` as well as
+    ``t_delta`` and ``delta_t``. This preserves existing configuration files.
+    """
+    for key in ("t_delta", "delta_t", "override_delta"):
+        value = options.get(key)
+        if value is not None:
+            return value
+    return None
+
+def make_expected_index(
+    date_range: DateRange,
+    frequency: pd.Timedelta,
+) -> pd.DatetimeIndex:
+    """Create one continuous campaign timeline at the requested resolution."""
+    return pd.date_range(
+        date_range.start,
+        date_range.end + pd.Timedelta(days=1),
+        freq=frequency,
+        inclusive="left",
+    )
+
+
+def apply_dqrs(index: pd.DatetimeIndex, dqrs: pd.DataFrame, campaign_end: pd.Timestamp) -> np.ndarray:
+    flags = np.full(len(index), np.nan)
+    if dqrs.empty:
+        return flags
+
+    for row in dqrs.itertuples(index=False):
+        end = campaign_end + pd.Timedelta(days=1) if row.end >= pd.Timestamp("3000-01-01") else row.end
+        mask = (index >= row.start) & (index < end)
+        code = DQR_CODES.get(row.code)
+        if code is not None:
+            flags[mask] = code
+    return flags
+
+
+def calculate_availability(
+    *,
+    site: str,
+    datastream: str,
+    secondary_datastream: str | None,
+    data_path: str | Path,
+    time_delta: int | float | None,
+    date_range: DateRange,
+    dqrs: pd.DataFrame,
+    use_dask: bool = True,
+    workers: int | None = None,
+    scheduler: str = "threads",
+    cache_dir: str | None = None,
+) -> AvailabilityResult:
+    """Calculate continuous availability using integer time-bin positions."""
+    time_delta_minutes, frequency = normalize_time_delta(time_delta)
+    expected = make_expected_index(date_range, frequency)
+    start_ns = int(expected[0].value)
+    end_ns = int((date_range.end + pd.Timedelta(days=1)).value)
+    delta_ns = int(frequency.value)
+    availability = np.zeros(len(expected), dtype=np.uint8)
+
+    streams = [datastream]
+    if secondary_datastream:
+        streams.append(secondary_datastream)
+
+    for stream in streams:
+        files = find_files_for_range(data_path, site, stream, date_range)
+        occupied_sets = read_occupied_bins(
+            files,
+            start_ns=start_ns,
+            end_ns=end_ns,
+            delta_ns=delta_ns,
+            use_dask=use_dask,
+            workers=workers,
+            scheduler=scheduler,
+            cache_dir=cache_dir,
+        )
+        for occupied in occupied_sets:
+            valid = occupied[(occupied >= 0) & (occupied < len(availability))]
+            availability[valid] = 1
+
+    dqr_data = apply_dqrs(expected, dqrs, date_range.end)
+    return AvailabilityResult(expected, availability, dqr_data, time_delta_minutes)
+
+
+def plot_2d(axis: plt.Axes, date_range: DateRange, result: AvailabilityResult) -> None:
+    frequency = pd.to_timedelta(result.time_delta, unit="min")
+    periods_exact = pd.Timedelta(days=1) / frequency
+    if not float(periods_exact).is_integer():
+        raise ValueError(
+            "For a 2D day/time plot, t_delta must divide evenly into 24 hours. "
+            f"Received {result.time_delta} minutes."
+        )
+    periods_per_day = int(periods_exact)
+    n_days = len(pd.date_range(date_range.start, date_range.end, freq="D"))
+    expected_size = n_days * periods_per_day
+    if len(result.data) != expected_size:
+        raise ValueError("Continuous availability timeline cannot be reshaped into complete days.")
+
+    dates = pd.date_range(date_range.start, date_range.end, freq="D")
+    times = pd.date_range("2000-01-01", periods=periods_per_day, freq=frequency)
+    data = result.data.reshape(n_days, periods_per_day)
+    dqr = result.dqr_data.reshape(n_days, periods_per_day)
+
+    axis.pcolormesh(dates, times, data.T, vmin=0, vmax=3, cmap=AVAILABILITY_CMAP, shading="auto")
+    axis.pcolor(dates, times, dqr.T, hatch="/", alpha=0)
+    axis.yaxis.set_major_locator(HourLocator(interval=6))
+    axis.yaxis.set_major_formatter(DateFormatter("%H:%M"))
+
+
+def mask_to_broken_bar_ranges(
+    index: pd.DatetimeIndex,
+    mask: np.ndarray,
+    time_delta_minutes: float,
+) -> list[tuple[np.datetime64, np.timedelta64]]:
+    """Convert occupied bins to ``broken_barh`` ranges.
+
+    Runs are split whenever bins are nonadjacent or cross a UTC date boundary.
+    Each occupied bin receives at least one full ``t_delta`` of display width,
+    so isolated observations remain visible.
+    """
+    occupied_indices = np.flatnonzero(np.asarray(mask, dtype=bool))
+    if occupied_indices.size == 0:
+        return []
+
+    occupied_times = index[occupied_indices]
+    adjacent = np.diff(occupied_indices) == 1
+    same_day = (
+        occupied_times[:-1].normalize().to_numpy()
+        == occupied_times[1:].normalize().to_numpy()
+    )
+
+    breaks = np.flatnonzero(~(adjacent & same_day)) + 1
+    groups = np.split(occupied_indices, breaks)
+
+    times = index.to_numpy(dtype="datetime64[ns]")
+    delta_ns = int(pd.to_timedelta(time_delta_minutes, unit="min").value)
+
+    return [
+        (
+            times[group[0]],
+            np.timedelta64(int(len(group) * delta_ns), "ns"),
+        )
+        for group in groups
+    ]
+
+def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
+    ranges = mask_to_broken_bar_ranges(
+        result.index,
+        result.data > 0,
+        result.time_delta,
+    )
+    if ranges:
+        axis.broken_barh(ranges, (0, 1), facecolors="green")
+
+    for code, color in DQR_COLORS.items():
+        ranges = mask_to_broken_bar_ranges(
+            result.index,
+            result.dqr_data == code,
+            result.time_delta,
+        )
+        if ranges:
+            axis.broken_barh(ranges, (0, 1), facecolors=color)
+
+    axis.set_ylim(0, 1)
+    axis.get_yaxis().set_visible(False)
+
+
+def add_cover(fig: plt.Figure, grid: Any, row: int, title: str) -> int:
+    axis = fig.add_subplot(grid[row, :])
+    axis.axis("off")
+    axis.text(0.5, 0.99, "\n".join(textwrap.wrap(title, width=70)), size=14, ha="center")
+    axis.text(0.5, 0.45, "Atmospheric Radiation Measurement User Facility", size=12, ha="center")
+    return row + 2
+
+
+def add_instrument_text(
+    axis: plt.Axes,
+    *,
+    instrument: str,
+    description: str,
+    datastreams: list[str],
+    doi: str,
+    info_style: str,
+    include_doi: bool,
+    layout: Layout,
+) -> None:
+    axis.axis("off")
+    y = 0.95
+    ds_text = "\n".join(textwrap.wrap(", ".join(datastreams), width=layout.wrap_width))
+
+    if info_style == "simple":
+        axis.text(0, y, instrument.upper(), size=layout.font_size, va="top", weight="bold")
+        y -= layout.text_spacing
+        axis.text(0, y, ds_text, size=layout.font_size, va="top")
+        return
+
+    wrapped_description = "\n".join(textwrap.wrap(description, width=layout.wrap_width))
+    axis.text(0, y, wrapped_description, size=layout.font_size, va="top")
+    y -= layout.text_spacing * (1 + max(0, len(description) // layout.wrap_width))
+    axis.text(0, y, f"ARM Name: {instrument.upper()}", size=layout.font_size, va="top")
+    y -= layout.text_spacing
+    axis.text(0, y, f"Datastream: {ds_text}", size=layout.font_size, va="top")
+    y -= layout.text_spacing * (1.1 + max(0, len(ds_text) // layout.wrap_width))
+    if include_doi:
+        axis.text(0, y, "\n".join(textwrap.wrap(doi, width=layout.wrap_width)), size=layout.font_size, va="top")
+
+
+
+def add_table_pages(
+    pdf: PdfPages,
+    *,
+    title: str,
+    headers: list[str],
+    rows: list[list[Any]],
+    rows_per_page: int,
+    column_widths: list[float],
+    font_size: int,
+    scale: float,
+) -> None:
+    for start in range(0, len(rows), rows_per_page):
+        fig, axis = plt.subplots(figsize=(8.27, 11.69), dpi=100)
+        axis.axis("off")
+        axis.set_title(title)
+        table = axis.table(
+            cellText=rows[start : start + rows_per_page],
+            colLabels=headers,
+            loc="best",
+            colWidths=column_widths,
+            cellLoc="left",
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(font_size)
+        table.scale(1, scale)
+        fig.subplots_adjust(top=0.95, left=0.02, right=0.98)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+
+def create_summary(conf: dict[str, Any]) -> None:
+    site = conf["site"]
+    instruments = conf["instruments"]
+    output = conf.get("outname", "afc_summary.pdf")
+    base_data_path = conf.get("data_path", "/data/archive")
+    chart_style = conf.get("chart_style", "2D")
+    info_style = conf.get("info_style", "complex")
+    date_range = resolve_date_range(conf)
+    layout = get_layout(chart_style, info_style)
+    client = ArmClient(timeout=int(conf.get("http_timeout", 30)))
+
+    dqr_rows: list[list[Any]] = []
+    doi_rows: list[list[Any]] = []
+    row = 0
+    shared_axis: plt.Axes | None = None
+    fig: plt.Figure | None = None
+    grid = None
+
+    with PdfPages(output) as pdf:
+        for number, (instrument, options) in enumerate(instruments.items()):
+            if row == 0:
+                fig = plt.figure(figsize=(8.27, 11.69), constrained_layout=True, dpi=100)
+                grid = fig.add_gridspec(layout.nrows, layout.ncols)
+
+            datastream = site + options["dsname"]
+            secondary = site + options["dsname2"] if options.get("dsname2") else None
+            data_path = options.get("data_path", base_data_path)
+            print(datastream)
+
+            dqrs = client.get_dqrs(datastream)
+            if conf.get("dqr_table", False) and not dqrs.empty:
+                for report in dqrs.drop_duplicates("dqr_num").itertuples(index=False):
+                    dqr_rows.append(
+                        [datastream, report.dqr_num, report.code, "\n".join(textwrap.wrap(report.subject, 50)), report.start, report.end]
+                    )
+
+            if number == 0:
+                facility = client.get_metadata(datastream, field="facility_name")
+                row = add_cover(fig, grid, row, facility)
+
+            use_dask = bool(conf.get("use_dask", True))
+            if use_dask and delayed is None:
+                warnings.warn(
+                    "Dask is not installed; falling back to serial processing.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                use_dask = False
+
+            configured_delta = get_configured_time_delta(options)
+            print(f"  time delta: {configured_delta if configured_delta is not None else 1.0} minutes")
+
+            result = calculate_availability(
+                site=site,
+                datastream=datastream,
+                secondary_datastream=secondary,
+                data_path=data_path,
+                time_delta=get_configured_time_delta(options),
+                date_range=date_range,
+                dqrs=dqrs,
+                use_dask=use_dask,
+                workers=int(conf.get("dask_workers", 8)),
+                scheduler=str(conf.get("dask_scheduler", "threads")),
+                cache_dir=(
+                    None
+                    if conf.get("cache_dir", "~/.cache/afc_summary") is None
+                    else str(conf.get("cache_dir", "~/.cache/afc_summary"))
+                ),
+            )
+
+            doi = client.get_doi(instrument, site, options["dsname"], date_range)
+            if conf.get("doi_table", False):
+                doi_rows.append([instrument.upper(), "\n".join(textwrap.wrap(doi, width=90))])
+
+            description = client.get_metadata(datastream)
+            text_axis = fig.add_subplot(grid[row, 0])
+            add_instrument_text(
+                text_axis,
+                instrument=instrument,
+                description=description,
+                datastreams=[item for item in (datastream, secondary) if item],
+                doi=doi,
+                info_style=info_style,
+                include_doi=not conf.get("doi_table", False),
+                layout=layout,
+            )
+
+            plot_axis = fig.add_subplot(grid[row, 1:], rasterized=True, sharex=shared_axis)
+            shared_axis = shared_axis or plot_axis
+            if chart_style == "2D":
+                plot_2d(plot_axis, date_range, result)
+            else:
+                plot_linear(plot_axis, result)
+
+            if number == 0 or row == 0:
+                plot_axis.xaxis.tick_top()
+                plot_axis.tick_params(axis="x", labelsize=8)
+            else:
+                plot_axis.get_xaxis().set_visible(False)
+            plot_axis.set_xlim(date_range.start, date_range.end + pd.Timedelta(days=1))
+
+            row += 1
+            if row >= layout.nrows:
+                pdf.savefig(fig)
+                plt.close(fig)
+                fig = None
+                grid = None
+                row = 0
+                shared_axis = None
+
+        if fig is not None:
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        if conf.get("dqr_table", False):
+            add_table_pages(
+                pdf,
+                title="ARM Data Quality Report (DQR) Table",
+                headers=["Datastream", "DQR", "Quality", "Subject", "Start Date", "End Date"],
+                rows=dqr_rows,
+                rows_per_page=30,
+                column_widths=[0.165, 0.085, 0.08, 0.35, 0.145, 0.145],
+                font_size=7,
+                scale=1.7,
+            )
+
+        if conf.get("doi_table", False):
+            rows_per_page, scale = (13, 4) if site == "bnf" else (17, 3)
+            add_table_pages(
+                pdf,
+                title="ARM Data Object Identifier (DOI) Table",
+                headers=["Instrument", "DOI"],
+                rows=doi_rows,
+                rows_per_page=rows_per_page,
+                column_widths=[0.15, 0.8],
+                font_size=8,
+                scale=scale,
+            )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create campaign summary plots.")
+    parser.add_argument("-c", "--conf", required=True, help="Python configuration file defining 'conf'.")
+    return parser.parse_args()
+
+
+def main() -> None:
+    started = pd.Timestamp.now()
+    args = parse_args()
+    create_summary(load_config(args.conf))
+    print(pd.Timestamp.now() - started)
+
+
+if __name__ == "__main__":
+    main()
+
