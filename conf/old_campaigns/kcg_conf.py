@@ -17,7 +17,7 @@ conf = {
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'asi': {'dsname': 'asiskycoverM1.b1', 'override_delta': 60},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'csphot': {'dsname': 'csphotaodfiltv3M1.a1', 'override_delta': 10},
+        'csphot': {'dsname': 'csphotaodv3M1.a1'},
         'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, "workers": 1},
         'ecor': {'dsname': 'ecorsfM1.b1', 't_delta': 30},
         'gndirt': {'dsname': 'gndirtM1.b1'},
