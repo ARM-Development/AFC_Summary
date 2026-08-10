@@ -15,11 +15,14 @@ import warnings
 import re
 import hashlib
 import os
+
+os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 import act
+# netCDF4/HDF5 is used only for direct time-variable reads.
 from netCDF4 import Dataset, num2date
 
 try:
@@ -418,7 +421,7 @@ def read_occupied_bins(
         return list(
             compute(
                 *tasks,
-                scheduler=scheduler,
+                scheduler="threads",
                 num_workers=max(1, int(workers or min(8, len(tasks)))),
             )
         )
@@ -521,7 +524,7 @@ def calculate_availability(
             delta_ns=delta_ns,
             use_dask=use_dask,
             workers=workers,
-            scheduler=scheduler,
+            scheduler="threads",
             cache_dir=cache_dir,
         )
         for occupied in occupied_sets:
@@ -747,7 +750,7 @@ def create_summary(conf: dict[str, Any]) -> None:
                 date_range=date_range,
                 dqrs=dqrs,
                 use_dask=use_dask,
-                workers=int(conf.get("dask_workers", 8)),
+                workers=int(conf.get("dask_workers", 4)),
                 scheduler=str(conf.get("dask_scheduler", "threads")),
                 cache_dir=(
                     None
@@ -841,4 +844,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
