@@ -866,72 +866,115 @@ def add_table_pages(
     min_row_height: float = 0.035,
     line_height: float = 0.024,
 ) -> None:
-    for start in range(0, len(rows), rows_per_page):
+    """Add table pages, with content-aware pagination for wrapped tables."""
+
+    def wrap_row(row: list[Any]) -> tuple[list[str], int]:
+        wrapped_row: list[str] = []
+        max_lines = 1
+        for col, value in enumerate(row):
+            raw = str(value)
+            wrap_chars = max(8, int(105 * column_widths[col]))
+            parts: list[str] = []
+            for part in raw.splitlines() or [""]:
+                parts.extend(
+                    textwrap.wrap(
+                        part,
+                        width=wrap_chars,
+                        break_long_words=False,
+                        break_on_hyphens=False,
+                    ) or [""]
+                )
+            wrapped_row.append("\n".join(parts))
+            max_lines = max(max_lines, len(parts))
+        return wrapped_row, max_lines
+
+    if not adaptive_row_height:
+        for start in range(0, len(rows), rows_per_page):
+            fig, axis = plt.subplots(figsize=(8.27, 11.69), dpi=100)
+            axis.axis("off")
+            axis.set_title(title)
+            table = axis.table(
+                cellText=rows[start : start + rows_per_page],
+                colLabels=headers,
+                loc="best",
+                colWidths=column_widths,
+                cellLoc="left",
+            )
+            table.auto_set_font_size(False)
+            table.set_fontsize(font_size)
+            table.scale(1, scale)
+            fig.subplots_adjust(top=0.95, bottom=0.04, left=0.02, right=0.98)
+            pdf.savefig(fig)
+            plt.close(fig)
+        return
+
+    # Pre-wrap every row and estimate its normalized axes height.  Pagination
+    # is based on actual wrapped content instead of a fixed row count.
+    prepared: list[tuple[list[str], float]] = []
+    for row in rows:
+        wrapped, n_lines = wrap_row(row)
+        # Compact line spacing plus modest top/bottom padding.
+        height = max(min_row_height, line_height * n_lines + 0.008)
+        prepared.append((wrapped, height))
+
+    # The table occupies this fraction of the page axes. Leave room for title
+    # and margins. Header height is accounted for on every page.
+    available_height = 0.84
+    header_height = 0.045
+
+    pages: list[list[tuple[list[str], float]]] = []
+    current: list[tuple[list[str], float]] = []
+    used = header_height
+
+    for item in prepared:
+        row_height = item[1]
+        if current and used + row_height > available_height:
+            pages.append(current)
+            current = []
+            used = header_height
+        current.append(item)
+        used += row_height
+
+    if current:
+        pages.append(current)
+
+    for page in pages:
         fig, axis = plt.subplots(figsize=(8.27, 11.69), dpi=100)
         axis.axis("off")
-        axis.set_title(title)
+        axis.set_title(title, pad=12)
+
+        page_rows = [item[0] for item in page]
         table = axis.table(
-            cellText=rows[start : start + rows_per_page],
+            cellText=page_rows,
             colLabels=headers,
-            loc="best",
+            loc="upper center",
             colWidths=column_widths,
             cellLoc="left",
+            bbox=[0.02, 0.03, 0.96, 0.88],
         )
         table.auto_set_font_size(False)
         table.set_fontsize(font_size)
 
-        if adaptive_row_height:
-            # Matplotlib tables do not automatically enlarge rows for wrapped
-            # text. Size each row from the cell with the most text lines.
-            cells = table.get_celld()
-            n_cols = len(headers)
-            page_rows = rows[start : start + rows_per_page]
+        cells = table.get_celld()
+        n_cols = len(headers)
 
-            # Header row.
+        # Convert desired relative heights into fractions of this page's table
+        # height so rows fill only the space they actually need.
+        total = header_height + sum(item[1] for item in page)
+        header_fraction = header_height / total
+        for col in range(n_cols):
+            cells[0, col].set_height(header_fraction)
+            cells[0, col].get_text().set_va("center")
+
+        for row_num, (_, desired_height) in enumerate(page, start=1):
+            fraction = desired_height / total
             for col in range(n_cols):
-                cells[0, col].set_height(max(min_row_height, 0.04))
+                cells[row_num, col].set_height(fraction)
+                cells[row_num, col].get_text().set_va("center")
 
-            for row_num, row_data in enumerate(page_rows, start=1):
-                max_lines = 1
-
-                for col, value in enumerate(row_data):
-                    raw = str(value)
-
-                    # Estimate a safe character width from the relative column
-                    # width. Existing newlines are preserved, and each segment
-                    # is wrapped independently. This is intentionally
-                    # conservative because Matplotlib table cells do not grow
-                    # automatically when text is wider than the cell.
-                    wrap_chars = max(8, int(105 * column_widths[col]))
-                    wrapped_parts = []
-                    for part in raw.splitlines() or [""]:
-                        wrapped_parts.extend(
-                            textwrap.wrap(
-                                part,
-                                width=wrap_chars,
-                                break_long_words=False,
-                                break_on_hyphens=False,
-                            ) or [""]
-                        )
-
-                    wrapped = "\n".join(wrapped_parts)
-                    cells[row_num, col].get_text().set_text(wrapped)
-                    max_lines = max(max_lines, len(wrapped_parts))
-
-                # Add padding beyond the nominal font line height so adjacent
-                # rows cannot collide even with descenders and PDF rendering.
-                height = max(min_row_height, line_height * max_lines + 0.012)
-
-                for col in range(n_cols):
-                    cells[row_num, col].set_height(height)
-                    cells[row_num, col].get_text().set_va("center")
-        else:
-            table.scale(1, scale)
-
-        fig.subplots_adjust(top=0.95, left=0.02, right=0.98)
+        fig.subplots_adjust(top=0.94, bottom=0.03, left=0.02, right=0.98)
         pdf.savefig(fig)
         plt.close(fig)
-
 
 def create_summary(conf: dict[str, Any]) -> None:
     site = conf["site"]
@@ -1095,7 +1138,7 @@ def create_summary(conf: dict[str, Any]) -> None:
         if conf.get("doi_table", False):
             # DOI entries can wrap across several lines. Use adaptive row
             # heights rather than a fixed table scale to prevent overlap.
-            rows_per_page = 13 if site == "bnf" else 15
+            rows_per_page = 15  # ignored when adaptive_row_height=True
             add_table_pages(
                 pdf,
                 title="ARM Data Object Identifier (DOI) Table",
@@ -1106,8 +1149,8 @@ def create_summary(conf: dict[str, Any]) -> None:
                 font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.040,
-                line_height=0.020,
+                min_row_height=0.032,
+                line_height=0.015,
             )
 
 
