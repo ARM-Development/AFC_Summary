@@ -892,11 +892,35 @@ def add_table_pages(
                 cells[0, col].set_height(max(min_row_height, 0.04))
 
             for row_num, row_data in enumerate(page_rows, start=1):
-                max_lines = max(
-                    max(1, str(value).count("\\n") + 1)
-                    for value in row_data
-                )
-                height = max(min_row_height, line_height * max_lines)
+                max_lines = 1
+
+                for col, value in enumerate(row_data):
+                    raw = str(value)
+
+                    # Estimate a safe character width from the relative column
+                    # width. Existing newlines are preserved, and each segment
+                    # is wrapped independently. This is intentionally
+                    # conservative because Matplotlib table cells do not grow
+                    # automatically when text is wider than the cell.
+                    wrap_chars = max(8, int(105 * column_widths[col]))
+                    wrapped_parts = []
+                    for part in raw.splitlines() or [""]:
+                        wrapped_parts.extend(
+                            textwrap.wrap(
+                                part,
+                                width=wrap_chars,
+                                break_long_words=False,
+                                break_on_hyphens=False,
+                            ) or [""]
+                        )
+
+                    wrapped = "\\n".join(wrapped_parts)
+                    cells[row_num, col].get_text().set_text(wrapped)
+                    max_lines = max(max_lines, len(wrapped_parts))
+
+                # Add padding beyond the nominal font line height so adjacent
+                # rows cannot collide even with descenders and PDF rendering.
+                height = max(min_row_height, line_height * max_lines + 0.012)
 
                 for col in range(n_cols):
                     cells[row_num, col].set_height(height)
@@ -1071,7 +1095,7 @@ def create_summary(conf: dict[str, Any]) -> None:
         if conf.get("doi_table", False):
             # DOI entries can wrap across several lines. Use adaptive row
             # heights rather than a fixed table scale to prevent overlap.
-            rows_per_page = 13 if site == "bnf" else 15
+            rows_per_page = 9 if site == "bnf" else 11
             add_table_pages(
                 pdf,
                 title="ARM Data Object Identifier (DOI) Table",
@@ -1079,11 +1103,11 @@ def create_summary(conf: dict[str, Any]) -> None:
                 rows=doi_rows,
                 rows_per_page=rows_per_page,
                 column_widths=[0.15, 0.8],
-                font_size=8,
+                font_size=7,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.045,
-                line_height=0.026,
+                min_row_height=0.050,
+                line_height=0.031,
             )
 
 
