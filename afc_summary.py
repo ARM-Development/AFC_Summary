@@ -862,6 +862,9 @@ def add_table_pages(
     column_widths: list[float],
     font_size: int,
     scale: float,
+    adaptive_row_height: bool = False,
+    min_row_height: float = 0.035,
+    line_height: float = 0.024,
 ) -> None:
     for start in range(0, len(rows), rows_per_page):
         fig, axis = plt.subplots(figsize=(8.27, 11.69), dpi=100)
@@ -876,7 +879,31 @@ def add_table_pages(
         )
         table.auto_set_font_size(False)
         table.set_fontsize(font_size)
-        table.scale(1, scale)
+
+        if adaptive_row_height:
+            # Matplotlib tables do not automatically enlarge rows for wrapped
+            # text. Size each row from the cell with the most text lines.
+            cells = table.get_celld()
+            n_cols = len(headers)
+            page_rows = rows[start : start + rows_per_page]
+
+            # Header row.
+            for col in range(n_cols):
+                cells[0, col].set_height(max(min_row_height, 0.04))
+
+            for row_num, row_data in enumerate(page_rows, start=1):
+                max_lines = max(
+                    max(1, str(value).count("\\n") + 1)
+                    for value in row_data
+                )
+                height = max(min_row_height, line_height * max_lines)
+
+                for col in range(n_cols):
+                    cells[row_num, col].set_height(height)
+                    cells[row_num, col].get_text().set_va("center")
+        else:
+            table.scale(1, scale)
+
         fig.subplots_adjust(top=0.95, left=0.02, right=0.98)
         pdf.savefig(fig)
         plt.close(fig)
@@ -1042,7 +1069,9 @@ def create_summary(conf: dict[str, Any]) -> None:
             )
 
         if conf.get("doi_table", False):
-            rows_per_page, scale = (13, 4) if site == "bnf" else (17, 3)
+            # DOI entries can wrap across several lines. Use adaptive row
+            # heights rather than a fixed table scale to prevent overlap.
+            rows_per_page = 13 if site == "bnf" else 15
             add_table_pages(
                 pdf,
                 title="ARM Data Object Identifier (DOI) Table",
@@ -1051,7 +1080,10 @@ def create_summary(conf: dict[str, Any]) -> None:
                 rows_per_page=rows_per_page,
                 column_widths=[0.15, 0.8],
                 font_size=8,
-                scale=scale,
+                scale=1.0,
+                adaptive_row_height=True,
+                min_row_height=0.045,
+                line_height=0.026,
             )
 
 
