@@ -42,13 +42,14 @@ from matplotlib.dates import DateFormatter, HourLocator
 from scipy import stats
 
 
-DQR_URL = "https://dqr-web-service.svcs.arm.gov/dqr_qc/{datastream}/incorrect,suspect,missing"
+DQR_URL = "https://dqr-web-service.svcs.arm.gov/dqr_full/{datastream}/{start_date}/{end_date}/incorrect,suspect,missing"
 DOI_URL = "https://adc.arm.gov/citationservice/citation/inst-class"
 METADATA_URL = "https://adc.arm.gov/elastic/metadata/_search"
 OPEN_ENDED_DQR = pd.Timestamp("3001-01-01")
-DQR_CODES = {"Suspect": 2, "Incorrect": 3, "Missing": 4}
+DQR_CODES = {"suspect": 2, "incorrect": 3, "missing": 4}
 DQR_COLORS = {2: "yellow", 3: "red", 4: "grey"}
-AVAILABILITY_CMAP = ListedColormap(["white", "cornflowerblue", "yellow", "red"])
+DISPLAY_COLORS = ["white", "green", "yellow", "red", "grey"]
+AVAILABILITY_CMAP = ListedColormap(DISPLAY_COLORS)
 
 
 @dataclass(frozen=True)
@@ -112,16 +113,26 @@ class ArmClient:
         response.raise_for_status()
         return response.json()
 
-    def get_dqrs(self, datastream: str) -> pd.DataFrame:
-        """Return DQR records for a datastream without making 404 fatal.
+    def get_dqrs(
+        self,
+        datastream: str,
+        date_range: DateRange,
+    ) -> pd.DataFrame:
+        """Return DQR ranges using the same date-scoped dqr_full API as ACT.
 
-        The DQR API may return HTTP 404 with ``{"detail": "Not Found"}``
-        when no DQRs exist. Any unavailable or malformed DQR response is
-        therefore treated as an empty result so report generation can proceed.
+        One row is returned for every actual DQR time range so the timeline is
+        accurate.  The report table later collapses these rows to one entry per
+        DQR number.
         """
-        url = DQR_URL.format(datastream=datastream)
         columns = ["dqr_num", "start", "end", "code", "subject"]
         empty = pd.DataFrame(columns=columns)
+
+        # ACT scopes DQR retrieval to the requested data period.
+        url = DQR_URL.format(
+            datastream=datastream,
+            start_date=date_range.start.strftime("%Y%m%d"),
+            end_date=date_range.end.strftime("%Y%m%d"),
+        )
 
         try:
             response = self.session.get(url, timeout=self.timeout)
@@ -134,9 +145,7 @@ class ArmClient:
             )
             return empty
 
-        # The service commonly uses 404 + {"detail": "Not Found"} to mean
-        # that there are no matching DQR records. Never call raise_for_status()
-        # in this method because that response is expected and non-fatal.
+        # No matching DQRs is non-fatal.
         if response.status_code == 404:
             return empty
 
@@ -163,32 +172,70 @@ class ArmClient:
         if not isinstance(payload, dict) or payload.get("detail") == "Not Found":
             return empty
 
-        stream_payload = payload.get(datastream, {})
-        if not isinstance(stream_payload, dict):
+        # Match ACT's response interpretation: the datastream contains
+        # assessment/category groups; each DQR contains its own dates list.
+        docs = payload.get(datastream, {})
+        if not isinstance(docs, dict):
             return empty
 
         rows: list[dict[str, Any]] = []
-        for category, reports in stream_payload.items():
+
+        for category, reports in docs.items():
             if not isinstance(reports, dict):
                 continue
-            for number, report in reports.items():
+
+            code = str(category).strip().lower()
+            if code not in DQR_CODES:
+                continue
+
+            for dqr_number, report in reports.items():
                 if not isinstance(report, dict):
                     continue
+
+                subject = str(report.get("subject", ""))
+
                 for time_range in report.get("dates", []):
-                    if not isinstance(time_range, dict) or "start_date" not in time_range:
+                    if not isinstance(time_range, dict):
                         continue
-                    end = time_range.get("end_date")
+
+                    start_value = time_range.get("start_date")
+                    if start_value in (None, "", "None"):
+                        continue
+
+                    end_value = time_range.get("end_date")
+
+                    try:
+                        start_time = pd.Timestamp(start_value)
+                        end_time = (
+                            OPEN_ENDED_DQR
+                            if end_value in (None, "", "None")
+                            else pd.Timestamp(end_value)
+                        )
+                    except (TypeError, ValueError):
+                        warnings.warn(
+                            f"Skipping malformed time range for DQR "
+                            f"{dqr_number}: {time_range}",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
+                        continue
+
+                    # Clip out ranges that do not intersect the requested report
+                    # period. dqr_full should already do this, but keeping this
+                    # guard makes the plotting logic deterministic.
+                    report_start = date_range.start
+                    report_end = date_range.end + pd.Timedelta(days=1)
+
+                    if end_time <= report_start or start_time >= report_end:
+                        continue
+
                     rows.append(
                         {
-                            "dqr_num": number,
-                            "start": pd.Timestamp(time_range["start_date"]),
-                            "end": (
-                                OPEN_ENDED_DQR
-                                if end in (None, "None")
-                                else pd.Timestamp(end)
-                            ),
-                            "code": category,
-                            "subject": report.get("subject", ""),
+                            "dqr_num": str(dqr_number),
+                            "start": max(start_time, report_start),
+                            "end": min(end_time, report_end),
+                            "code": code,
+                            "subject": subject,
                         }
                     )
 
@@ -475,19 +522,81 @@ def make_expected_index(
     )
 
 
-def apply_dqrs(index: pd.DatetimeIndex, dqrs: pd.DataFrame, campaign_end: pd.Timestamp) -> np.ndarray:
-    flags = np.full(len(index), np.nan)
+def apply_dqrs(
+    index: pd.DatetimeIndex,
+    dqrs: pd.DataFrame,
+    campaign_end: pd.Timestamp,
+) -> np.ndarray:
+    """Map DQR intervals onto the timeline independently of data availability.
+
+    Status values:
+        0 = no DQR
+        2 = suspect
+        3 = incorrect
+        4 = missing
+
+    DQR codes are matched case-insensitively.  If DQRs overlap, the more
+    consequential state wins: missing > incorrect > suspect.
+    """
+    status = np.zeros(len(index), dtype=np.uint8)
     if dqrs.empty:
-        return flags
+        return status
+
+    priority = {2: 1, 3: 2, 4: 3}
 
     for row in dqrs.itertuples(index=False):
-        end = campaign_end + pd.Timedelta(days=1) if row.end >= pd.Timestamp("3000-01-01") else row.end
-        mask = (index >= row.start) & (index < end)
-        code = DQR_CODES.get(row.code)
-        if code is not None:
-            flags[mask] = code
-    return flags
+        code_name = str(row.code).strip().lower()
+        code = DQR_CODES.get(code_name)
+        if code is None:
+            continue
 
+        start = pd.Timestamp(row.start)
+        end = pd.Timestamp(row.end)
+
+        if pd.isna(start):
+            continue
+
+        if pd.isna(end) or end >= pd.Timestamp("3000-01-01"):
+            end = campaign_end + pd.Timedelta(days=1)
+
+        mask = (index >= start) & (index < end)
+        if not np.any(mask):
+            continue
+
+        # Preserve deterministic precedence for overlapping DQRs.
+        current = status[mask]
+        replace = np.array(
+            [priority.get(code, 0) >= priority.get(int(value), 0) for value in current],
+            dtype=bool,
+        )
+        current[replace] = code
+        status[mask] = current
+
+    return status
+
+
+def make_display_state(result: AvailabilityResult) -> np.ndarray:
+    """Combine availability and DQR status into the five plotted states.
+
+    0 = white: no data and no missing DQR
+    1 = green: data available and no applicable suspect/incorrect DQR
+    2 = yellow: available data covered by a suspect DQR
+    3 = red: available data covered by an incorrect DQR
+    4 = grey: period covered by a missing DQR
+
+    Missing DQRs are shown grey even though data are absent. Suspect and
+    incorrect DQRs color only bins where data are actually available.
+    """
+    display = np.zeros(len(result.data), dtype=np.uint8)
+    available = np.asarray(result.data, dtype=bool)
+    dqr = np.asarray(result.dqr_data, dtype=np.uint8)
+
+    display[available] = 1
+    display[available & (dqr == 2)] = 2
+    display[available & (dqr == 3)] = 3
+    display[dqr == 4] = 4
+
+    return display
 
 def calculate_availability(
     *,
@@ -543,6 +652,7 @@ def plot_2d(axis: plt.Axes, date_range: DateRange, result: AvailabilityResult) -
             "For a 2D day/time plot, t_delta must divide evenly into 24 hours. "
             f"Received {result.time_delta} minutes."
         )
+
     periods_per_day = int(periods_exact)
     n_days = len(pd.date_range(date_range.start, date_range.end, freq="D"))
     expected_size = n_days * periods_per_day
@@ -551,14 +661,19 @@ def plot_2d(axis: plt.Axes, date_range: DateRange, result: AvailabilityResult) -
 
     dates = pd.date_range(date_range.start, date_range.end, freq="D")
     times = pd.date_range("2000-01-01", periods=periods_per_day, freq=frequency)
-    data = result.data.reshape(n_days, periods_per_day)
-    dqr = result.dqr_data.reshape(n_days, periods_per_day)
+    display = make_display_state(result).reshape(n_days, periods_per_day)
 
-    axis.pcolormesh(dates, times, data.T, vmin=0, vmax=3, cmap=AVAILABILITY_CMAP, shading="auto")
-    axis.pcolor(dates, times, dqr.T, hatch="/", alpha=0)
+    axis.pcolormesh(
+        dates,
+        times,
+        display.T,
+        vmin=-0.5,
+        vmax=4.5,
+        cmap=AVAILABILITY_CMAP,
+        shading="auto",
+    )
     axis.yaxis.set_major_locator(HourLocator(interval=6))
     axis.yaxis.set_major_formatter(DateFormatter("%H:%M"))
-
 
 def mask_to_broken_bar_ranges(
     index: pd.DatetimeIndex,
@@ -597,18 +712,14 @@ def mask_to_broken_bar_ranges(
     ]
 
 def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
-    ranges = mask_to_broken_bar_ranges(
-        result.index,
-        result.data > 0,
-        result.time_delta,
-    )
-    if ranges:
-        axis.broken_barh(ranges, (0, 1), facecolors="green")
+    """Plot the five-state availability/DQR timeline."""
+    display = make_display_state(result)
 
-    for code, color in DQR_COLORS.items():
+    # White (0) is the untouched axes background.
+    for state, color in ((1, "green"), (2, "yellow"), (3, "red"), (4, "grey")):
         ranges = mask_to_broken_bar_ranges(
             result.index,
-            result.dqr_data == code,
+            display == state,
             result.time_delta,
         )
         if ranges:
@@ -616,7 +727,6 @@ def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
 
     axis.set_ylim(0, 1)
     axis.get_yaxis().set_visible(False)
-
 
 def add_cover(fig: plt.Figure, grid: Any, row: int, title: str) -> int:
     axis = fig.add_subplot(grid[row, :])
@@ -718,11 +828,44 @@ def create_summary(conf: dict[str, Any]) -> None:
             data_path = options.get("data_path", base_data_path)
             print(datastream)
 
-            dqrs = client.get_dqrs(datastream)
+            dqrs = client.get_dqrs(datastream, date_range)
+            if conf.get("debug_dqrs", False):
+                if dqrs.empty:
+                    print("  DQRs: none")
+                else:
+                    for dqr_num, ranges in dqrs.groupby("dqr_num", sort=False):
+                        print(
+                            f"  DQR {dqr_num}: {len(ranges)} time range(s), "
+                            f"code={ranges.iloc[0]['code']}"
+                        )
+                        if conf.get("debug_dqr_ranges", False):
+                            for dqr_range in ranges.itertuples(index=False):
+                                print(
+                                    f"    {dqr_range.start} -> "
+                                    f"{dqr_range.end} [{dqr_range.code}]"
+                                )
+
             if conf.get("dqr_table", False) and not dqrs.empty:
-                for report in dqrs.drop_duplicates("dqr_num").itertuples(index=False):
+                # The timeline uses every individual DQR time range.  The table
+                # intentionally contains only one summary row per DQR number.
+                for dqr_num, ranges in dqrs.groupby("dqr_num", sort=False):
+                    first = ranges.iloc[0]
+                    finite_ends = ranges.loc[ranges["end"] != OPEN_ENDED_DQR, "end"]
+                    table_start = ranges["start"].min()
+                    table_end = (
+                        OPEN_ENDED_DQR
+                        if (ranges["end"] == OPEN_ENDED_DQR).any()
+                        else finite_ends.max()
+                    )
                     dqr_rows.append(
-                        [datastream, report.dqr_num, report.code, "\n".join(textwrap.wrap(report.subject, 50)), report.start, report.end]
+                        [
+                            datastream,
+                            dqr_num,
+                            first["code"],
+                            "\n".join(textwrap.wrap(str(first["subject"]), 50)),
+                            table_start,
+                            table_end,
+                        ]
                     )
 
             if number == 0:
@@ -844,3 +987,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
