@@ -914,7 +914,7 @@ def add_table_pages(
                             ) or [""]
                         )
 
-                    wrapped = "\\n".join(wrapped_parts)
+                    wrapped = "\n".join(wrapped_parts)
                     cells[row_num, col].get_text().set_text(wrapped)
                     max_lines = max(max_lines, len(wrapped_parts))
 
@@ -1095,7 +1095,7 @@ def create_summary(conf: dict[str, Any]) -> None:
         if conf.get("doi_table", False):
             # DOI entries can wrap across several lines. Use adaptive row
             # heights rather than a fixed table scale to prevent overlap.
-            rows_per_page = 9 if site == "bnf" else 11
+            rows_per_page = 13 if site == "bnf" else 15
             add_table_pages(
                 pdf,
                 title="ARM Data Object Identifier (DOI) Table",
@@ -1103,11 +1103,11 @@ def create_summary(conf: dict[str, Any]) -> None:
                 rows=doi_rows,
                 rows_per_page=rows_per_page,
                 column_widths=[0.15, 0.8],
-                font_size=7,
+                font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.050,
-                line_height=0.031,
+                min_row_height=0.040,
+                line_height=0.020,
             )
 
 
