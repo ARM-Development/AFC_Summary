@@ -914,7 +914,7 @@ def add_table_pages(
     for row in rows:
         wrapped, n_lines = wrap_row(row)
         # Compact line spacing plus modest top/bottom padding.
-        height = max(min_row_height, line_height * n_lines + 0.008)
+        height = max(min_row_height, line_height * n_lines + 0.003)
         prepared.append((wrapped, height))
 
     # The table occupies this fraction of the page axes. Leave room for title
@@ -1149,8 +1149,8 @@ def create_summary(conf: dict[str, Any]) -> None:
                 font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.032,
-                line_height=0.015,
+                min_row_height=0.024,
+                line_height=0.014,
             )
 
 
