@@ -874,16 +874,19 @@ def add_table_pages(
         for col, value in enumerate(row):
             raw = str(value)
             wrap_chars = max(8, int(105 * column_widths[col]))
-            parts: list[str] = []
-            for part in raw.splitlines() or [""]:
-                parts.extend(
-                    textwrap.wrap(
-                        part,
-                        width=wrap_chars,
-                        break_long_words=False,
-                        break_on_hyphens=False,
-                    ) or [""]
-                )
+
+            # Reflow existing line breaks into normal prose. Earlier wrapping
+            # stages can leave very short fragments such as "M.," or "ARM" on
+            # their own line; treating those breaks as hard breaks preserves
+            # the artifact. Collapse whitespace first, then wrap once.
+            normalized = " ".join(raw.split())
+            parts = textwrap.wrap(
+                normalized,
+                width=wrap_chars,
+                break_long_words=False,
+                break_on_hyphens=False,
+            ) or [""]
+
             wrapped_row.append("\n".join(parts))
             max_lines = max(max_lines, len(parts))
         return wrapped_row, max_lines
@@ -914,7 +917,7 @@ def add_table_pages(
     for row in rows:
         wrapped, n_lines = wrap_row(row)
         # Compact line spacing plus modest top/bottom padding.
-        height = max(min_row_height, line_height * n_lines + 0.003)
+        height = max(min_row_height, line_height * n_lines + 0.001)
         prepared.append((wrapped, height))
 
     # The table occupies this fraction of the page axes. Leave room for title
@@ -1149,8 +1152,8 @@ def create_summary(conf: dict[str, Any]) -> None:
                 font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.024,
-                line_height=0.014,
+                min_row_height=0.018,
+                line_height=0.0125,
             )
 
 
