@@ -756,7 +756,7 @@ def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
             result.time_delta,
         )
         if ranges:
-            axis.broken_barh(ranges, (0, 1), facecolors=color)
+            axis.broken_barh(ranges, (0, 1), facecolors=color, zorder=2)
 
     # Guarantee visible slivers for short suspect/incorrect DQRs.  Use the
     # original DQR state array rather than the availability-composed display
@@ -802,6 +802,14 @@ def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
 
     axis.set_ylim(0, 1)
     axis.get_yaxis().set_visible(False)
+
+    # Draw the timeline frame above all availability and DQR shading so the
+    # black outline remains visible even when a colored range begins or ends
+    # exactly at the plot boundary.
+    for spine in axis.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1.0)
+        spine.set_zorder(20)
 
 def add_cover(fig: plt.Figure, grid: Any, row: int, title: str) -> int:
     axis = fig.add_subplot(grid[row, :])
