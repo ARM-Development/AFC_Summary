@@ -917,7 +917,7 @@ def add_table_pages(
     for row in rows:
         wrapped, n_lines = wrap_row(row)
         # Compact line spacing plus modest top/bottom padding.
-        height = max(min_row_height, line_height * n_lines + 0.001)
+        height = max(min_row_height, line_height * n_lines)
         prepared.append((wrapped, height))
 
     # The table occupies this fraction of the page axes. Leave room for title
@@ -961,18 +961,19 @@ def add_table_pages(
         cells = table.get_celld()
         n_cols = len(headers)
 
-        # Convert desired relative heights into fractions of this page's table
-        # height so rows fill only the space they actually need.
-        total = header_height + sum(item[1] for item in page)
-        header_fraction = header_height / total
+        # Keep the calculated row heights absolute instead of normalizing them
+        # to fill the whole table bbox. Normalization caused pages with only a
+        # few rows to stretch those rows into large boxes with excessive white
+        # space.
+        table_height = 0.88
         for col in range(n_cols):
-            cells[0, col].set_height(header_fraction)
+            cells[0, col].set_height(header_height / table_height)
             cells[0, col].get_text().set_va("center")
 
         for row_num, (_, desired_height) in enumerate(page, start=1):
-            fraction = desired_height / total
+            row_fraction = desired_height / table_height
             for col in range(n_cols):
-                cells[row_num, col].set_height(fraction)
+                cells[row_num, col].set_height(row_fraction)
                 cells[row_num, col].get_text().set_va("center")
 
         fig.subplots_adjust(top=0.94, bottom=0.03, left=0.02, right=0.98)
@@ -1152,8 +1153,8 @@ def create_summary(conf: dict[str, Any]) -> None:
                 font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.018,
-                line_height=0.0125,
+                min_row_height=0.016,
+                line_height=0.0115,
             )
 
 
