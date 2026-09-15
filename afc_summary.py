@@ -947,13 +947,21 @@ def add_table_pages(
         axis.set_title(title, pad=12)
 
         page_rows = [item[0] for item in page]
+
+        # Size the table bbox to the actual content on this page. A fixed bbox
+        # makes Matplotlib redistribute/stretch rows on a sparse final page.
+        content_height = header_height + sum(item[1] for item in page)
+        content_height = min(content_height, available_height)
+        table_top = 0.91
+        table_bottom = table_top - content_height
+
         table = axis.table(
             cellText=page_rows,
             colLabels=headers,
             loc="upper center",
             colWidths=column_widths,
             cellLoc="left",
-            bbox=[0.02, 0.03, 0.96, 0.88],
+            bbox=[0.02, table_bottom, 0.96, content_height],
         )
         table.auto_set_font_size(False)
         table.set_fontsize(font_size)
@@ -961,17 +969,14 @@ def add_table_pages(
         cells = table.get_celld()
         n_cols = len(headers)
 
-        # Keep the calculated row heights absolute instead of normalizing them
-        # to fill the whole table bbox. Normalization caused pages with only a
-        # few rows to stretch those rows into large boxes with excessive white
-        # space.
-        table_height = 0.88
+        # Heights are fractions of the content-sized bbox, so they retain the
+        # same physical size whether a page is full or contains only a few rows.
         for col in range(n_cols):
-            cells[0, col].set_height(header_height / table_height)
+            cells[0, col].set_height(header_height / content_height)
             cells[0, col].get_text().set_va("center")
 
         for row_num, (_, desired_height) in enumerate(page, start=1):
-            row_fraction = desired_height / table_height
+            row_fraction = desired_height / content_height
             for col in range(n_cols):
                 cells[row_num, col].set_height(row_fraction)
                 cells[row_num, col].get_text().set_va("center")
