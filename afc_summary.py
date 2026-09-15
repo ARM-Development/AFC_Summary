@@ -527,7 +527,7 @@ def apply_dqrs(
     dqrs: pd.DataFrame,
     campaign_end: pd.Timestamp,
 ) -> np.ndarray:
-    """Map DQR intervals onto the timeline independently of data availability.
+    """Map DQR intervals onto timeline bins using interval overlap.
 
     Status values:
         0 = no DQR
@@ -535,14 +535,28 @@ def apply_dqrs(
         3 = incorrect
         4 = missing
 
-    DQR codes are matched case-insensitively.  If DQRs overlap, the more
-    consequential state wins: missing > incorrect > suspect.
+    A DQR applies to a timeline bin whenever any part of that bin overlaps the
+    DQR interval.  This is more accurate than testing only the bin start time,
+    especially for short MET DQRs that begin or end between ``t_delta`` bins.
+
+    Overlap priority is:
+        missing > incorrect > suspect
     """
     status = np.zeros(len(index), dtype=np.uint8)
-    if dqrs.empty:
+    if dqrs.empty or len(index) == 0:
         return status
 
-    priority = {2: 1, 3: 2, 4: 3}
+    priority = {0: 0, 2: 1, 3: 2, 4: 3}
+
+    # The expected timeline is regular, so infer the bin width directly.
+    if len(index) > 1:
+        bin_width = index[1] - index[0]
+    else:
+        bin_width = pd.Timedelta(days=1)
+
+    bin_start = index
+    bin_end = index + bin_width
+    report_end = campaign_end + pd.Timedelta(days=1)
 
     for row in dqrs.itertuples(index=False):
         code_name = str(row.code).strip().lower()
@@ -557,17 +571,25 @@ def apply_dqrs(
             continue
 
         if pd.isna(end) or end >= pd.Timestamp("3000-01-01"):
-            end = campaign_end + pd.Timedelta(days=1)
+            end = report_end
 
-        mask = (index >= start) & (index < end)
+        # Clip to the report timeline.
+        start = max(start, index[0])
+        end = min(end, report_end)
+        if end <= start:
+            continue
+
+        # Half-open interval overlap:
+        # [bin_start, bin_end) overlaps [start, end)
+        mask = (bin_start < end) & (bin_end > start)
         if not np.any(mask):
             continue
 
-        # Preserve deterministic precedence for overlapping DQRs.
         current = status[mask]
-        replace = np.array(
-            [priority.get(code, 0) >= priority.get(int(value), 0) for value in current],
+        replace = np.fromiter(
+            (priority[code] >= priority.get(int(value), 0) for value in current),
             dtype=bool,
+            count=current.size,
         )
         current[replace] = code
         status[mask] = current
@@ -641,6 +663,7 @@ def calculate_availability(
             availability[valid] = 1
 
     dqr_data = apply_dqrs(expected, dqrs, date_range.end)
+
     return AvailabilityResult(expected, availability, dqr_data, time_delta_minutes)
 
 
@@ -712,10 +735,20 @@ def mask_to_broken_bar_ranges(
     ]
 
 def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
-    """Plot the five-state availability/DQR timeline."""
+    """Plot availability and DQR states with visible short-DQR markers.
+
+    Actual DQR durations are preserved in the normal broken-bar rendering.
+    Suspect and Incorrect ranges also receive a thin, fixed-width vertical
+    marker at the center of each contiguous range. This guarantees that even a
+    one-minute DQR remains visible on a year-long PDF without implying that the
+    DQR lasted longer than it actually did.
+
+    Plot priority remains:
+        missing > incorrect > suspect > good
+    """
     display = make_display_state(result)
 
-    # White (0) is the untouched axes background.
+    # White (0) is the untouched axes background. Draw low priority first.
     for state, color in ((1, "green"), (2, "yellow"), (3, "red"), (4, "grey")):
         ranges = mask_to_broken_bar_ranges(
             result.index,
@@ -724,6 +757,48 @@ def plot_linear(axis: plt.Axes, result: AvailabilityResult) -> None:
         )
         if ranges:
             axis.broken_barh(ranges, (0, 1), facecolors=color)
+
+    # Guarantee visible slivers for short suspect/incorrect DQRs.  Use the
+    # original DQR state array rather than the availability-composed display
+    # mask so a DQR marker cannot disappear solely because its containing
+    # availability bin is absent.
+    #
+    # Draw Suspect first and Incorrect second. Missing is redrawn last below,
+    # preserving missing > incorrect > suspect priority.
+    for state, color in ((2, "yellow"), (3, "red")):
+        ranges = mask_to_broken_bar_ranges(
+            result.index,
+            result.dqr_data == state,
+            result.time_delta,
+        )
+        for range_start, range_width in ranges:
+            start = pd.Timestamp(range_start)
+            width = pd.Timedelta(range_width)
+            center = start + width / 2
+            axis.axvline(
+                center,
+                ymin=0,
+                ymax=1,
+                color=color,
+                linewidth=0.8,
+                solid_capstyle="butt",
+                zorder=5,
+            )
+
+    # Missing must remain the highest-priority overlay. Redraw its actual
+    # ranges after the fixed-width suspect/incorrect markers.
+    missing_ranges = mask_to_broken_bar_ranges(
+        result.index,
+        result.dqr_data == 4,
+        result.time_delta,
+    )
+    if missing_ranges:
+        axis.broken_barh(
+            missing_ranges,
+            (0, 1),
+            facecolors="grey",
+            zorder=6,
+        )
 
     axis.set_ylim(0, 1)
     axis.get_yaxis().set_visible(False)
