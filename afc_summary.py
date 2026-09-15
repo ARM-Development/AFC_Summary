@@ -873,7 +873,7 @@ def add_table_pages(
         max_lines = 1
         for col, value in enumerate(row):
             raw = str(value)
-            wrap_chars = max(8, int(105 * column_widths[col]))
+            wrap_chars = max(8, int(118 * column_widths[col]))
 
             # Reflow existing line breaks into normal prose. Earlier wrapping
             # stages can leave very short fragments such as "M.," or "ARM" on
@@ -917,7 +917,7 @@ def add_table_pages(
     for row in rows:
         wrapped, n_lines = wrap_row(row)
         # Compact line spacing plus modest top/bottom padding.
-        height = max(min_row_height, line_height * n_lines)
+        height = max(min_row_height, line_height * n_lines + 0.003)
         prepared.append((wrapped, height))
 
     # The table occupies this fraction of the page axes. Leave room for title
@@ -1158,8 +1158,8 @@ def create_summary(conf: dict[str, Any]) -> None:
                 font_size=8,
                 scale=1.0,
                 adaptive_row_height=True,
-                min_row_height=0.016,
-                line_height=0.0115,
+                min_row_height=0.020,
+                line_height=0.0125,
             )
 
 
