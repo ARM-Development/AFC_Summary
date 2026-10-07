@@ -3,6 +3,9 @@
 This optimized refactor of AFC_Summary/afc_summary.py uses direct netCDF4 time reads, integer binning, Dask parallelism, and per-file caching. It preserves the
 existing configuration-file interface while separating configuration, data
 access, availability calculations, and plotting into testable functions.
+
+Dask and per-file caching are optional performance features and default to
+off. Either may be enabled globally or overridden for individual instruments.
 """
 
 from __future__ import annotations
@@ -391,9 +394,23 @@ def read_file_bins(
     delta_ns: int,
     cache_dir: str | None = None,
 ) -> np.ndarray:
-    """Read only ``time`` and return unique occupied output-bin positions."""
+    """Read only ``time`` and return unique occupied output-bin positions.
+
+    Individual unreadable/corrupt NetCDF files are reported and skipped rather
+    than aborting the entire AFC summary.
+    """
     file_path = Path(path)
-    stat = file_path.stat()
+    empty = np.array([], dtype=np.int64)
+
+    try:
+        stat = file_path.stat()
+    except OSError as exc:
+        print(
+            f"  WARNING: Unable to stat {file_path.name}: {exc}. Skipping file.",
+            flush=True,
+        )
+        return empty
+
     cache_path: Path | None = None
 
     if cache_dir:
@@ -408,27 +425,50 @@ def read_file_bins(
             except (OSError, ValueError):
                 cache_path.unlink(missing_ok=True)
 
-    with Dataset(path, mode="r") as nc:
-        if "time" not in nc.variables:
-            bins = np.array([], dtype=np.int64)
-        else:
+    # Uncomment temporarily when diagnosing a native NetCDF/HDF5 crash:
+    # print(f"  Reading: {file_path.name}", flush=True)
+
+    try:
+        with Dataset(path, mode="r") as nc:
+            if "time" not in nc.variables:
+                print(
+                    f"  WARNING: {file_path.name} has no time variable. "
+                    "Skipping file.",
+                    flush=True,
+                )
+                return empty
+
             variable = nc.variables["time"]
-            values = variable[:]
-            if values.size == 0:
-                bins = np.array([], dtype=np.int64)
-            else:
-                decoded = num2date(
-                    values,
-                    units=variable.units,
-                    calendar=getattr(variable, "calendar", "standard"),
-                    only_use_cftime_datetimes=False,
-                    only_use_python_datetimes=True,
-                )
-                times_ns = np.asarray(decoded, dtype="datetime64[ns]").astype(np.int64)
-                valid = (times_ns >= start_ns) & (times_ns < end_ns)
-                bins = np.unique((times_ns[valid] - start_ns) // delta_ns).astype(
-                    np.int64, copy=False
-                )
+
+            # Copy all information needed from the NetCDF object while it is
+            # open. Decoding is then performed after the file has been closed.
+            values = np.asarray(variable[:]).copy()
+            units = str(variable.units)
+            calendar = str(getattr(variable, "calendar", "standard"))
+
+        if values.size == 0:
+            bins = empty
+        else:
+            decoded = num2date(
+                values,
+                units=units,
+                calendar=calendar,
+                only_use_cftime_datetimes=False,
+                only_use_python_datetimes=True,
+            )
+            times_ns = np.asarray(decoded, dtype="datetime64[ns]").astype(np.int64)
+            valid = (times_ns >= start_ns) & (times_ns < end_ns)
+            bins = np.unique((times_ns[valid] - start_ns) // delta_ns).astype(
+                np.int64, copy=False
+            )
+
+    except (OSError, RuntimeError, ValueError, KeyError, AttributeError) as exc:
+        print(
+            f"  WARNING: Unable to read {file_path.name}: {exc}. "
+            "Skipping file.",
+            flush=True,
+        )
+        return empty
 
     if cache_path is not None:
         temporary = cache_path.with_suffix(f".{os.getpid()}.tmp.npy")
@@ -452,7 +492,12 @@ def read_occupied_bins(
     scheduler: str = "threads",
     cache_dir: str | None = None,
 ) -> list[np.ndarray]:
-    """Read occupied bins from files, optionally in parallel."""
+    """Read occupied bins from files, optionally in parallel.
+
+    When ``use_dask`` is False this is a genuinely sequential code path:
+    Dask/delayed/compute are not used at all. Each NetCDF file is opened,
+    read, closed, and returned before the next file is touched.
+    """
     paths = list(files)
     if not paths:
         return []
@@ -463,15 +508,22 @@ def read_occupied_bins(
         "delta_ns": delta_ns,
         "cache_dir": cache_dir,
     }
-    if use_dask and delayed is not None and compute is not None and len(paths) > 1:
+
+    if not use_dask:
+        return [read_file_bins(path, **kwargs) for path in paths]
+
+    if delayed is not None and compute is not None and len(paths) > 1:
         tasks = [delayed(read_file_bins)(path, **kwargs) for path in paths]
         return list(
             compute(
                 *tasks,
-                scheduler="threads",
+                scheduler=scheduler,
                 num_workers=max(1, int(workers or min(8, len(tasks)))),
             )
         )
+
+    # Dask requested but unavailable (or only one file): fall back to the same
+    # safe sequential reader rather than routing through dask.compute().
     return [read_file_bins(path, **kwargs) for path in paths]
 
 
@@ -985,6 +1037,169 @@ def add_table_pages(
         pdf.savefig(fig)
         plt.close(fig)
 
+
+def summarize_availability_table(
+    result: AvailabilityResult,
+    frequency: str = "monthly",
+) -> pd.Series:
+    """Return the dominant plotted availability/DQR state for each period.
+
+    The calculation uses the exact same five-state array as the availability
+    plot (``make_display_state``):
+
+        0 = white:  no data / no DQR
+        1 = green:  available
+        2 = yellow: suspect
+        3 = red:    incorrect
+        4 = gray:   missing DQR
+
+    White/no-data bins are excluded when selecting the exported color. If
+    any colored state occurs during a day/month, the colored state occupying
+    the greatest number of bins is exported. A blank is returned only when
+    the entire period is white (no data and no DQR).
+
+    In the event of an exact tie among colored states, the more significant
+    plotted state wins using:
+
+        Gray > Red > Yellow > Green
+    """
+    frequency = frequency.lower()
+    if frequency not in {"daily", "monthly"}:
+        raise ValueError("export_frequency must be 'daily' or 'monthly'")
+
+    display = make_display_state(result)
+    frame = pd.DataFrame({"state": display}, index=result.index)
+    period = frame.index.to_period("D" if frequency == "daily" else "M")
+
+    # White (0) represents no data and no DQR. It does not compete with the
+    # colored states when choosing the exported monthly/daily summary. A blank
+    # is returned only when the entire period is white.
+    #
+    # For exact ties among colored states:
+    #     Gray > Red > Yellow > Green
+    tie_priority = {1: 1, 2: 2, 3: 3, 4: 4}
+
+    def _dominant_state(values: pd.Series) -> int:
+        counts = np.bincount(
+            values.to_numpy(dtype=np.uint8),
+            minlength=5,
+        )
+
+        colored_counts = counts[1:5]
+        if colored_counts.sum() == 0:
+            return 0
+
+        maximum = colored_counts.max()
+        tied = np.flatnonzero(colored_counts == maximum) + 1
+        return int(max(tied, key=lambda state: tie_priority[int(state)]))
+
+    return frame["state"].groupby(period).apply(_dominant_state)
+
+
+def export_availability_table(
+    records: list[dict[str, Any]],
+    *,
+    output_path: str | Path,
+    frequency: str = "monthly",
+) -> Path:
+    """Export the dominant availability-plot color for each instrument/period.
+
+    Rows are instruments and columns are days or months.  Each cell contains
+    only the dominant plotted state:
+
+        Green
+        Yellow
+        Red
+        Gray
+
+    A blank cell means white/no data with no applicable DQR.  This is a
+    categorical version of the availability plot rather than an availability
+    percentage report.
+    """
+    if not records:
+        raise ValueError("No instrument availability results are available to export.")
+
+    frequency = frequency.lower()
+    if frequency not in {"daily", "monthly"}:
+        raise ValueError("export_frequency must be 'daily' or 'monthly'")
+
+    state_names = {
+        0: "",
+        1: "Green",
+        2: "Yellow",
+        3: "Red",
+        4: "Gray",
+    }
+
+    table_rows: list[pd.Series] = []
+    names: list[str] = []
+
+    for record in records:
+        dominant = summarize_availability_table(record["result"], frequency)
+        cells = {
+            period: state_names[int(state)]
+            for period, state in dominant.items()
+        }
+        table_rows.append(pd.Series(cells, dtype="object"))
+        names.append(str(record["instrument"]).upper())
+
+    table = pd.DataFrame(table_rows, index=names).sort_index(axis=1)
+    table.index.name = "Instrument"
+
+    if frequency == "daily":
+        table.columns = [value.strftime("%Y-%m-%d") for value in table.columns]
+    else:
+        table.columns = [value.strftime("%Y-%m") for value in table.columns]
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    table.to_csv(output_path)
+    return output_path
+
+
+
+def export_dqr_ranges(
+    records: list[dict[str, Any]],
+    *,
+    output_path: str | Path,
+) -> Path:
+    """Export every actual DQR interval for machine-readable follow-up."""
+    rows: list[dict[str, Any]] = []
+
+    for record in records:
+        dqrs = record["dqrs"]
+        if dqrs.empty:
+            continue
+
+        for item in dqrs.itertuples(index=False):
+            rows.append(
+                {
+                    "Instrument": str(record["instrument"]).upper(),
+                    "Datastream": record["datastream"],
+                    "DQR": item.dqr_num,
+                    "Quality": item.code,
+                    "Start": item.start,
+                    "End": item.end,
+                    "Subject": item.subject,
+                }
+            )
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    columns = [
+        "Instrument",
+        "Datastream",
+        "DQR",
+        "Quality",
+        "Start",
+        "End",
+        "Subject",
+    ]
+    pd.DataFrame(rows, columns=columns).to_csv(output_path, index=False)
+    return output_path
+
+
 def create_summary(conf: dict[str, Any]) -> None:
     site = conf["site"]
     instruments = conf["instruments"]
@@ -998,6 +1213,7 @@ def create_summary(conf: dict[str, Any]) -> None:
 
     dqr_rows: list[list[Any]] = []
     doi_rows: list[list[Any]] = []
+    export_records: list[dict[str, Any]] = []
     row = 0
     shared_axis: plt.Axes | None = None
     fig: plt.Figure | None = None
@@ -1058,7 +1274,14 @@ def create_summary(conf: dict[str, Any]) -> None:
                 facility = client.get_metadata(datastream, field="facility_name")
                 row = add_cover(fig, grid, row, facility)
 
-            use_dask = bool(conf.get("use_dask", True))
+            # Processing options can be set per instrument, with an optional
+            # global fallback. Both default to the conservative/off setting.
+            use_dask = bool(
+                options.get(
+                    "use_dask",
+                    conf.get("use_dask", False),
+                )
+            )
             if use_dask and delayed is None:
                 warnings.warn(
                     "Dask is not installed; falling back to serial processing.",
@@ -1083,10 +1306,19 @@ def create_summary(conf: dict[str, Any]) -> None:
                 scheduler=str(conf.get("dask_scheduler", "threads")),
                 cache_dir=(
                     None
-                    if conf.get("cache_dir", "~/.cache/afc_summary") is None
-                    else str(conf.get("cache_dir", "~/.cache/afc_summary"))
+                    if options.get("cache_dir", conf.get("cache_dir", None)) is None
+                    else str(options.get("cache_dir", conf.get("cache_dir", None)))
                 ),
             )
+            if conf.get("export_table", False):
+                export_records.append(
+                    {
+                        "instrument": instrument,
+                        "datastream": datastream,
+                        "result": result,
+                        "dqrs": dqrs.copy(),
+                    }
+                )
 
             doi = client.get_doi(instrument, site, options["dsname"], date_range)
             if conf.get("doi_table", False):
@@ -1161,6 +1393,41 @@ def create_summary(conf: dict[str, Any]) -> None:
                 min_row_height=0.020,
                 line_height=0.0125,
             )
+
+
+
+    # Write machine-readable companion tables only after all NetCDF processing
+    # and PDF generation have completed.
+    if conf.get("export_table", False):
+        frequency = str(conf.get("export_frequency", "monthly")).lower()
+        pdf_path = Path(output)
+
+        table_path = Path(
+            conf.get(
+                "export_outname",
+                pdf_path.with_name(
+                    f"{pdf_path.stem}_availability_{frequency}.csv"
+                ),
+            )
+        )
+        dqr_path = Path(
+            conf.get(
+                "dqr_export_outname",
+                pdf_path.with_name(f"{pdf_path.stem}_dqr_ranges.csv"),
+            )
+        )
+
+        written_table = export_availability_table(
+            export_records,
+            output_path=table_path,
+            frequency=frequency,
+        )
+        written_dqrs = export_dqr_ranges(
+            export_records,
+            output_path=dqr_path,
+        )
+        print(f"Availability table written to {written_table}")
+        print(f"DQR ranges written to {written_dqrs}")
 
 
 def parse_args() -> argparse.Namespace:

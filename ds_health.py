@@ -14,12 +14,12 @@ import subprocess
 import pandas as pd
 
 # Set site for processing
-site = 'crg'
-dirs = glob.glob('/data/archive/' + site + '/*')
+site = 'epc'
+dirs = glob.glob('/data/archive/' + site + '/*kazrcfrgeqc*')
 dirs.sort()
 
 # Set directories to exclude if there are image files or high-frequency files
-exclude_dirs = ['sacr', 'kazr', 'dl', 'camseastate', 'mwacr', 'image',
+exclude_dirs = ['sacr', 'dl', 'camseastate', 'mwacr', 'image',
                 'mask', 'mwrtip', 'rwpspec']
 
 # Set up dictionary to store scores for each ds
@@ -67,6 +67,8 @@ for d in dirs:
     data[d]['n_reproc_files'] = len(data[d]['reproc_files'])
     data[d]['n_delete_files'] = len(data[d]['delete_files'])
     data[d]['n_files'] = len(files)
+
+    print(data[d])
 
     df['ds'].append(d)
     #if len(counts.keys()) > 0:

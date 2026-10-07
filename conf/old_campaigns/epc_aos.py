@@ -10,13 +10,17 @@ conf = {
     'outname': '/home/theisen/Code/AFC_Summary/images/epc/epc_aos_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
+    "export_table": True,
+    "export_frequency": "monthly",
+    "cache_dir": "~/.cache/afc_summary",
     'data_path': '/data/archive',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
         'acsm': {'dsname': 'aosacsmM1.b1', 't_delta': 30},
-        'aeth': {'dsname': 'aosaeth2spotM1.a1'},
+        'aeth': {'dsname': 'aosaeth2spotM1.b1'},
         'aosmet': {'dsname': 'aosmetM1.a1'},
+        'aps': {'dsname': 'aosapsM1.b1'},
         'ccn': {'dsname': 'aosccn2colaM1.b1'},
         'co-analyzer': {'dsname': 'aoscoM1.b1'},
         'cpc': {'dsname': 'aoscpcf1mM1.b1'},

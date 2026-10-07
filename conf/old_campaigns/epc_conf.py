@@ -10,16 +10,21 @@ conf = {
     'outname': '/home/theisen/Code/AFC_Summary/images/epc/epc_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
+    "export_table": True,
+    "export_frequency": "monthly",
+    "cache_dir": "~/.cache/afc_summary",
     'data_path': '/data/archive',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},
-        'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60},
+        'csphot': {'dsname': 'csphotaodv3M1.a1', 'override_delta': 1440, "use_dask": False,},
+        'dl': {'dsname': 'dlfptM1.b1', 't_delta': 60, 'workers': 1},
         'ecor': {'dsname': '30ecorM1.b1', 't_delta': 30},
         'gndrad': {'dsname': 'gndrad60sM1.b1'},
         'irt': {'dsname': 'irtsstM1.b1'},
+        'kazr': {'dsname': 'kazrcfrgeqcM1.b1', "use_dask": False},
         'ldis': {'dsname': 'ldM1.b1'},
         'maws': {'dsname': 'mawsM1.b1'},
         'met': {'dsname': 'metM1.b1'},
@@ -39,12 +44,5 @@ conf = {
         'tsi': {'dsname': 'tsiskycoverM1.b1'},
         'vdis': {'dsname': 'vdisM1.b1'},
         'wb': {'dsname': 'wbpluvio2M1.a1'},
-        'ceilS2': {'dsname': 'ceilS2.b1'},
-        'dlS2': {'dsname': 'dlfptS2.b1', 't_delta': 60},
-        'ldisS2': {'dsname': 'ldS2.b1'},
-        'mwr3cS2': {'dsname': 'mwr3cS2.b1'},
-        'orgS2': {'dsname': 'orgS2.b1'},
-        'rainS2': {'dsname': 'raintbS2.b1'},
-
     }
 }
