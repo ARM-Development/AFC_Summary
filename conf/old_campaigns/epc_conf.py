@@ -38,7 +38,7 @@ conf = {
         'rwp': {'dsname': '1290bsrwpwindavgM1.b1', 't_delta': 60},
         'sashe': {'dsname': 'sashemfrM1.b1'},
         'sasze': {'dsname': 'saszefilterbandsM1.a1'},
-        'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30},
+        'sebs': {'dsname': 'sebsM1.b1', 't_delta': 30, 'ignore_dqrs': ["D240227.1"]},
         'skyrad': {'dsname': 'skyrad60sM1.b1'},
         'sonde': {'dsname': 'sondewnpnM1.b1', 't_delta': 1440./3},
         'tsi': {'dsname': 'tsiskycoverM1.b1'},

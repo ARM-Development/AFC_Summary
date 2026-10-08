@@ -69,7 +69,6 @@ NFOV,epcnfov2chM1.b1,D231130.12,missing,2023-10-27 17:00:00,2023-10-28 18:19:12,
 NFOV,epcnfov2chM1.b1,D231205.1,incorrect,2023-10-29 07:00:00,2023-10-30 06:59:59,Incorrect Data
 RWP,epc1290bsrwpwindavgM1.b1,D230127.1293,suspect,2023-02-15 00:00:00,2024-02-14 23:59:59,Incorrect Data for Winds Below 3m/s
 SASHE,epcsashemfrM1.b1,D230327.4,missing,2023-03-11 20:13:48,2023-03-22 17:31:14,No Data
-SEBS,epcsebsM1.b1,D240227.1,missing,2023-02-15 00:00:00,2024-02-15 00:00:00,No SEBS Soil Sensors at EPCAPE
 SKYRAD,epcskyrad60sM1.b1,D230428.6,incorrect,2023-03-16 22:44:00,2023-03-17 18:39:00,Sun Tracker Failure affected by Cables Untangled and Repositioned
 TSI,epctsiskycoverM1.b1,D230303.5,suspect,2023-02-15 00:00:00,2023-03-02 17:57:00,Use Sunny Field with Caution
 TSI,epctsiskycoverM1.b1,D230303.5,suspect,2023-04-19 00:00:00,2023-05-25 23:59:59,Use Sunny Field with Caution

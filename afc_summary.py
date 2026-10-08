@@ -1231,6 +1231,19 @@ def create_summary(conf: dict[str, Any]) -> None:
             print(datastream)
 
             dqrs = client.get_dqrs(datastream, date_range)
+
+            # Individual instruments may exclude specific DQRs from all
+            # summary products. Ignored DQRs do not affect the availability
+            # plot, CSV export, or DQR table.
+            ignore_dqrs = {
+                str(value).strip()
+                for value in options.get("ignore_dqrs", [])
+            }
+            if ignore_dqrs and not dqrs.empty:
+                dqrs = dqrs[
+                    ~dqrs["dqr_num"].astype(str).str.strip().isin(ignore_dqrs)
+                ].copy()
+
             if conf.get("debug_dqrs", False):
                 if dqrs.empty:
                     print("  DQRs: none")

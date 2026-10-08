@@ -18,11 +18,11 @@ MWR3C,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Gr
 MWRHF,Green,Green,Green,Green,Green,Green,Green,Green,Gray,Green,Green,Green,Red
 NFOV,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
 RWP,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow,Yellow
-SASHE,,Gray,Green,Green,Green,Green,Green,,,,,,
+SASHE,Green,Gray,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
 SASZE,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
-SEBS,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray,Gray
+SEBS,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
 SKYRAD,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
 SONDE,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
-TSI,,,,Yellow,Yellow,Yellow,Green,,,Gray,,,
-VDIS,Green,Green,Green,Green,Green,Green,Green,Green,,,Green,Green,Green
+TSI,Yellow,Green,Green,Yellow,Yellow,Yellow,Green,Green,Green,Gray,Green,Green,Green
+VDIS,Green,Green,Green,Green,Green,Green,Green,Green,Green,,Green,Green,Green
 WB,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green,Green
