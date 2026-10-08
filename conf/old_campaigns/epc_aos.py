@@ -12,6 +12,7 @@ conf = {
     'info_style': 'simple',
     "export_table": True,
     "export_frequency": "monthly",
+    "export_metric": "percent_good",
     "cache_dir": "~/.cache/afc_summary",
     'data_path': '/data/archive',
     'dqr_table': True,

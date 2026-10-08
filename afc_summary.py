@@ -1101,20 +1101,12 @@ def export_availability_table(
     *,
     output_path: str | Path,
     frequency: str = "monthly",
+    metric: str = "dominant_color",
 ) -> Path:
-    """Export the dominant availability-plot color for each instrument/period.
+    """Export dominant colors or percent-good availability by period.
 
-    Rows are instruments and columns are days or months.  Each cell contains
-    only the dominant plotted state:
-
-        Green
-        Yellow
-        Red
-        Gray
-
-    A blank cell means white/no data with no applicable DQR.  This is a
-    categorical version of the availability plot rather than an availability
-    percentage report.
+    Percent good is the fraction of all expected bins that are green, including
+    white/no-data bins in the denominator.
     """
     if not records:
         raise ValueError("No instrument availability results are available to export.")
@@ -1122,6 +1114,9 @@ def export_availability_table(
     frequency = frequency.lower()
     if frequency not in {"daily", "monthly"}:
         raise ValueError("export_frequency must be 'daily' or 'monthly'")
+    metric = str(metric).strip().lower()
+    if metric not in {"dominant_color", "percent_good"}:
+        raise ValueError("export_metric must be 'dominant_color' or 'percent_good'")
 
     state_names = {
         0: "",
@@ -1135,12 +1130,20 @@ def export_availability_table(
     names: list[str] = []
 
     for record in records:
-        dominant = summarize_availability_table(record["result"], frequency)
-        cells = {
-            period: state_names[int(state)]
-            for period, state in dominant.items()
-        }
-        table_rows.append(pd.Series(cells, dtype="object"))
+        if metric == "percent_good":
+            result = record["result"]
+            display = make_display_state(result)
+            period = result.index.to_period("D" if frequency == "daily" else "M")
+            good = pd.Series(display == 1, index=result.index)
+            percentages = good.groupby(period).mean().mul(100).round(1)
+            table_rows.append(percentages)
+        else:
+            dominant = summarize_availability_table(record["result"], frequency)
+            cells = {
+                period: state_names[int(state)]
+                for period, state in dominant.items()
+            }
+            table_rows.append(pd.Series(cells, dtype="object"))
         names.append(str(record["instrument"]).upper())
 
     table = pd.DataFrame(table_rows, index=names).sort_index(axis=1)
@@ -1434,6 +1437,7 @@ def create_summary(conf: dict[str, Any]) -> None:
             export_records,
             output_path=table_path,
             frequency=frequency,
+            metric=str(conf.get("export_metric", "dominant_color")),
         )
         written_dqrs = export_dqr_ranges(
             export_records,
@@ -1458,4 +1462,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
