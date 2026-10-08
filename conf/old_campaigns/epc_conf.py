@@ -10,8 +10,10 @@ conf = {
     'outname': '/home/theisen/Code/AFC_Summary/images/epc/epc_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
+    "cache_dir": "~/.cache/afc_summary",
     "export_table": True,
     "export_frequency": "monthly",
+    "export_metric": "percent_good",
     "cache_dir": "~/.cache/afc_summary",
     'data_path': '/data/archive',
     'dqr_table': True,
