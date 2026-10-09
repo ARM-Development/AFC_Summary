@@ -1,0 +1,44 @@
+Instrument,Datastream,DQR,Quality,Start,End,Subject
+CEIL,epcceilS2.b1,D240202.6,missing,2024-01-27 09:28:29,2024-01-29 19:11:46,No Data due to No Power
+DL,epcdlfptS2.b1,D231130.7,missing,2023-10-07 17:54:04,2023-10-13 13:17:10,Data Not Available
+DL,epcdlfptS2.b1,D240202.7,missing,2024-01-27 09:28:00,2024-01-29 19:05:00,No Data
+KASACR,epckasacrcfrqcS2.b1,D230614.2,missing,2023-06-02 19:35:00,2023-06-06 20:41:00,SACR Down during Hardware Maintenance
+KASACR,epckasacrcfrqcS2.b1,D230721.9,missing,2023-07-10 16:27:00,2023-07-12 00:39:25,Engineer Maintenance
+KASACR,epckasacrcfrqcS2.b1,D230915.18,missing,2023-08-19 15:41:00,2023-08-22 19:30:00,No KaSACR or WSACR Observations during Hurricane Hilary 
+KASACR,epckasacrcfrqcS2.b1,D231017.2,missing,2023-10-15 08:59:00,2023-10-17 01:00:00,No Data due to Planned Site System Power Outage 
+KASACR,epckasacrcfrqcS2.b1,D231103.6,missing,2023-10-31 14:00:18,2023-11-03 00:41:59,Missing Data due to Chiller Replacement 
+KASACR,epckasacrcfrqcS2.b1,D240201.1,missing,2024-01-27 09:20:00,2024-01-29 19:13:50,Data Missing due to Power Outage 
+KASACR,epckasacrcfrqcS2.b1,D231005.2,incorrect,2023-04-09 21:57:53,2023-04-09 23:59:59,Incorrect Data
+KASACR,epckasacrcfrqcS2.b1,D231005.3,incorrect,2023-08-15 16:08:24,2023-08-15 19:00:00,Incorrect Data
+KASACR,epckasacrcfrqcS2.b1,D231221.5,incorrect,2023-12-14 12:41:00,2023-12-14 18:41:00,Incorrect Data
+KASACR,epckasacrcfrqcS2.b1,D240108.5,incorrect,2023-12-29 14:11:26,2023-12-29 18:41:00,Incorrect Data
+KASACR,epckasacrcfrqcS2.b1,D240110.1,incorrect,2023-11-03 00:48:12,2023-11-03 06:41:13,Incorrect Data
+LDIS,epcldS2.b1,D240202.9,missing,2024-01-27 09:28:00,2024-01-29 19:06:00,No Data
+MWR3C,epcmwr3cS2.b1,D240202.10,missing,2024-01-27 09:00:14,2024-01-29 22:00:11,Missing Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-02-16 16:27:00,2023-02-16 16:29:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-02-18 21:59:00,2023-02-18 22:01:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-02-19 17:09:00,2023-02-19 17:11:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-02-20 23:01:00,2023-02-20 23:03:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-02-27 17:01:00,2023-02-27 17:03:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-01 17:06:00,2023-03-01 17:09:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-02 16:37:00,2023-03-02 16:39:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-03 20:47:00,2023-03-03 20:49:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-08 21:21:00,2023-03-08 21:24:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-10 19:26:00,2023-03-10 19:29:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-14 00:07:00,2023-03-14 00:10:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-17 19:00:00,2023-03-17 19:02:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-20 17:33:00,2023-03-20 17:36:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-22 19:32:00,2023-03-22 19:35:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-03-24 17:45:00,2023-03-24 17:47:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-04-07 21:23:00,2023-04-07 21:25:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-04-15 17:57:00,2023-04-15 17:59:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-04-18 22:02:00,2023-04-18 22:04:00,False Precipitation Data
+ORG,epcorgS2.b1,D230420.1,incorrect,2023-06-06 22:06:00,2023-06-06 22:10:59,False Precipitation Data
+ORG,epcorgS2.b1,D230901.5,incorrect,2023-08-20 20:00:00,2023-08-22 19:00:59,Optical Rain Gauge Water Intrusion
+ORG,epcorgS2.b1,D230925.3,incorrect,2023-08-22 18:30:00,2023-09-25 16:05:00,ORG Diagnostic Voltage Incorrect
+RAIN,epcraintbS2.b1,D240202.2,suspect,2023-11-30 04:24:00,2023-11-30 11:42:59,Tipping Bucket Precipitation Data Suspect
+RAIN,epcraintbS2.b1,D240202.2,suspect,2024-02-07 04:27:00,2024-02-07 23:03:59,Tipping Bucket Precipitation Data Suspect
+WSACR,epcwsacrcfrqcS2.b1,D230614.2,missing,2023-06-02 19:35:00,2023-06-06 20:41:00,SACR Down during Hardware Maintenance
+WSACR,epcwsacrcfrqcS2.b1,D230915.18,missing,2023-08-19 15:41:00,2023-08-22 19:30:00,No KaSACR or WSACR Observations during Hurricane Hilary 
+WSACR,epcwsacrcfrqcS2.b1,D231017.2,missing,2023-10-15 08:59:00,2023-10-17 01:00:00,No Data due to Planned Site System Power Outage 
+WSACR,epcwsacrcfrqcS2.b1,D240201.1,missing,2024-01-27 09:20:00,2024-01-29 19:13:50,Data Missing due to Power Outage 
