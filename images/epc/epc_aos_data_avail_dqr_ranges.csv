@@ -105,6 +105,7 @@ SO2,epcaosso2M1.b1,D231114.20,missing,2023-10-15 10:00:00,2023-10-20 19:48:14,Da
 SP2,epcaossp2bc60sM1.b1,D230613.8,missing,2023-05-23 17:00:00,2023-06-03 10:23:00,No Data
 SP2,epcaossp2bc60sM1.b1,D230721.10,missing,2023-07-08 16:36:00,2023-07-12 15:50:00,Missing Data
 SP2,epcaossp2bc60sM1.b1,D230923.1,incorrect,2023-09-18 00:00:00,2023-09-22 23:59:59,Mentors On-Site for Mid-Campaign Calibration
+SP2,epcaossp2bc60sM1.b1,D231010.1,incorrect,2023-02-15 00:00:00,2024-02-15 00:00:00,aossp2_counts Variable Always Reads Zero
 UHSAS,epcaosuhsasM1.b1,D230718.1,suspect,2023-02-15 00:00:00,2023-06-10 23:59:54,Artifacts in the UHSAS data above ~550 nm
 UHSAS,epcaosuhsasM1.b1,D230923.1,incorrect,2023-09-18 00:00:00,2023-09-22 23:59:59,Mentors On-Site for Mid-Campaign Calibration
 UHSAS,epcaosuhsasM1.b1,D231013.2,incorrect,2023-09-11 16:37:50,2023-09-11 18:22:19,Incorrect Data
