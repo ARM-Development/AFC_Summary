@@ -22,6 +22,8 @@ conf = {
     # Processing and data paths
     'cache_dir': '~/.cache/afc_summary',
     'data_path': '/data/archive',
+    'dqr_table': True,
+    'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
         'aeri': {'dsname': 'aerisummaryM1.b1'},
         'ceil': {'dsname': 'ceilM1.b1'},

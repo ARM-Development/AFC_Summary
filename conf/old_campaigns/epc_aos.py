@@ -10,10 +10,17 @@ conf = {
     'outname': '/home/theisen/Code/AFC_Summary/images/epc/epc_aos_data_avail.pdf', #options are png, pdf, etc
     'chart_style': 'linear',
     'info_style': 'simple',
-    "export_table": True,
-    "export_frequency": "monthly",
-    "export_metric": "percent_good",
-    "cache_dir": "~/.cache/afc_summary",
+    # CSV exports
+    'export_table': True,
+    'export_frequency': 'monthly',  # 'monthly' or 'daily'
+    'export_metric': 'percent_good',
+    # Additional CSV reports
+    'export_availability_percent': True,
+    'export_dqr_flagged_percent': True,
+    # Limit the DQR percentage CSV to primary measurements
+    'dqr_primary_only': True,
+    # Processing and data paths
+    'cache_dir': '~/.cache/afc_summary',
     'data_path': '/data/archive',
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
