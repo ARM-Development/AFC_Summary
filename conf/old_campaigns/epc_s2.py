@@ -20,7 +20,7 @@ conf = {
     'instruments':{
         'ceil': {'dsname': 'ceilS2.b1'},
         'dl': {'dsname': 'dlfptS2.b1', 't_delta': 60},
-        'kasacr': {'dsname': 'kasacrcfrqcS2.b1'},
+        'kasacr': {'dsname': 'kasacrcfrqcS2.b1', 'ignore_dqrs': ['D240126.7']},
         'ldis': {'dsname': 'ldS2.b1'},
         'mwr3c': {'dsname': 'mwr3cS2.b1'},
         'org': {'dsname': 'orgS2.b1'},

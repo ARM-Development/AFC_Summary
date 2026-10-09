@@ -127,7 +127,7 @@ class ArmClient:
         accurate.  The report table later collapses these rows to one entry per
         DQR number.
         """
-        columns = ["dqr_num", "start", "end", "code", "subject"]
+        columns = ["dqr_num", "start", "end", "code", "subject", "variables", "variable_scope_known", "datastream_wide"]
         empty = pd.DataFrame(columns=columns)
 
         # ACT scopes DQR retrieval to the requested data period.
@@ -196,6 +196,24 @@ class ArmClient:
                     continue
 
                 subject = str(report.get("subject", ""))
+                # Preserve variable targeting for the optional primary-only CSV.
+                # No variable field is NOT assumed to mean datastream-wide.
+                raw_variables = report.get("variables", report.get("variable_names"))
+                scope = str(report.get("scope", report.get("variable_scope", ""))).lower()
+                datastream_wide = scope in {"datastream", "all", "all_variables", "global"}
+                variable_scope_known = datastream_wide or (
+                    isinstance(raw_variables, (list, tuple, str)) and bool(raw_variables)
+                )
+                if isinstance(raw_variables, str):
+                    affected_variables = tuple(v.strip() for v in raw_variables.split(",") if v.strip())
+                elif isinstance(raw_variables, (list, tuple)):
+                    affected_variables = tuple(
+                        str(v.get("var_name", v.get("name", "")) if isinstance(v, dict) else v).strip()
+                        for v in raw_variables
+                    )
+                    affected_variables = tuple(v for v in affected_variables if v)
+                else:
+                    affected_variables = ()
 
                 for time_range in report.get("dates", []):
                     if not isinstance(time_range, dict):
@@ -239,10 +257,44 @@ class ArmClient:
                             "end": min(end_time, report_end),
                             "code": code,
                             "subject": subject,
+                            "variables": affected_variables,
+                            "variable_scope_known": variable_scope_known,
+                            "datastream_wide": datastream_wide,
                         }
                     )
 
         return pd.DataFrame(rows, columns=columns)
+
+    def get_primary_variables(self, datastream: str) -> set[str]:
+        """Retrieve primary measurement variables using ARM Elasticsearch metadata."""
+        variables: set[str] = set()
+        try:
+            # Pagination avoids silently truncating metadata at the default 10 hits.
+            offset = 0
+            while True:
+                payload = self._get_json(
+                    METADATA_URL,
+                    params={
+                        "q": f"datastream:{datastream}",
+                        "_source": "var_name,primary_meas_type_code",
+                        "size": 1000,
+                        "from": offset,
+                    },
+                )
+                hits = payload.get("hits", {}).get("hits", [])
+                for hit in hits:
+                    source = hit.get("_source", {})
+                    if "primary_meas_type_code" in source and source.get("var_name") is not None:
+                        variables.add(str(source["var_name"]).strip())
+                if len(hits) < 1000:
+                    break
+                offset += len(hits)
+                if offset >= 10000:
+                    warnings.warn(f"Primary-variable metadata truncated for {datastream} at 10000 hits")
+                    break
+        except (requests.RequestException, ValueError, AttributeError, TypeError) as exc:
+            warnings.warn(f"Unable to retrieve primary variables for {datastream}: {exc}")
+        return variables
 
     def get_doi(
         self,
@@ -1115,8 +1167,8 @@ def export_availability_table(
     if frequency not in {"daily", "monthly"}:
         raise ValueError("export_frequency must be 'daily' or 'monthly'")
     metric = str(metric).strip().lower()
-    if metric not in {"dominant_color", "percent_good"}:
-        raise ValueError("export_metric must be 'dominant_color' or 'percent_good'")
+    if metric not in {"dominant_color", "percent_good", "percent_available", "percent_flagged"}:
+        raise ValueError("export_metric must be 'dominant_color', 'percent_good', 'percent_available', or 'percent_flagged'")
 
     state_names = {
         0: "",
@@ -1130,12 +1182,34 @@ def export_availability_table(
     names: list[str] = []
 
     for record in records:
-        if metric == "percent_good":
+        if metric in {"percent_good", "percent_available", "percent_flagged"}:
             result = record["result"]
             display = make_display_state(result)
             period = result.index.to_period("D" if frequency == "daily" else "M")
-            good = pd.Series(display == 1, index=result.index)
-            percentages = good.groupby(period).mean().mul(100).round(1)
+            if metric == "percent_good":
+                values = pd.Series(display == 1, index=result.index)
+                percentages = values.groupby(period).mean().mul(100).round(1)
+            elif metric == "percent_available":
+                # Raw observed availability, independent of DQR overlay.
+                values = pd.Series(result.data.astype(bool), index=result.index)
+                percentages = values.groupby(period).mean().mul(100).round(1)
+            else:
+                # Suspect/incorrect DQRs affecting observed data, divided by
+                # the number of observed bins (not expected bins).
+                observed = pd.Series(result.data.astype(bool), index=result.index)
+                flagged_status = record.get("flagged_dqr_data", result.dqr_data)
+                if flagged_status is None:
+                    percentages = pd.Series(np.nan, index=observed.groupby(period).sum().index)
+                    table_rows.append(percentages)
+                    names.append(str(record["instrument"]).upper())
+                    continue
+                flagged = pd.Series(
+                    (result.data.astype(bool)) & np.isin(flagged_status, [2, 3]),
+                    index=result.index,
+                )
+                numerator = flagged.groupby(period).sum()
+                denominator = observed.groupby(period).sum()
+                percentages = numerator.div(denominator.replace(0, np.nan)).mul(100).round(1)
             table_rows.append(percentages)
         else:
             dominant = summarize_availability_table(record["result"], frequency)
@@ -1327,12 +1401,34 @@ def create_summary(conf: dict[str, Any]) -> None:
                 ),
             )
             if conf.get("export_table", False):
+                primary_only = bool(options.get("dqr_primary_only", conf.get("dqr_primary_only", False)))
+                flagged_dqr_data = result.dqr_data
+                if primary_only and conf.get("export_dqr_flagged_percent", False):
+                    primary = set(options.get("primary_variables") or client.get_primary_variables(datastream))
+                    if not primary:
+                        warnings.warn(f"No primary variables found for {datastream}; flagged percentage will be blank")
+                        flagged_dqr_data = None
+                    else:
+                        # Reports with unknown scope are excluded rather than silently
+                        # treating them as datastream-wide. Explicit empty variables
+                        # means a datastream-wide report only if the API provides it.
+                        eligible = dqrs.loc[dqrs.apply(
+                            lambda row: bool(row["variable_scope_known"]) and (
+                                row["datastream_wide"] or bool(primary.intersection(row["variables"]))
+                            ), axis=1,
+                        )].copy() if not dqrs.empty else dqrs
+                        unknown = int((~dqrs["variable_scope_known"]).sum()) if not dqrs.empty else 0
+                        if unknown:
+                            warnings.warn(f"{datastream}: {unknown} DQR intervals have unknown variable scope; excluded from primary-only CSV")
+                        flagged_dqr_data = apply_dqrs(result.index, eligible, date_range.end)
                 export_records.append(
                     {
                         "instrument": instrument,
                         "datastream": datastream,
                         "result": result,
                         "dqrs": dqrs.copy(),
+                        "flagged_dqr_data": flagged_dqr_data,
+                        "primary_only": primary_only,
                     }
                 )
 
@@ -1439,6 +1535,29 @@ def create_summary(conf: dict[str, Any]) -> None:
             frequency=frequency,
             metric=str(conf.get("export_metric", "dominant_color")),
         )
+        # Optional separate monthly/daily availability and DQR-flagged tables.
+        if conf.get("export_availability_percent", False):
+            availability_path = Path(conf.get(
+                "availability_percent_outname",
+                pdf_path.with_name(f"{pdf_path.stem}_percent_available_{frequency}.csv"),
+            ))
+            export_availability_table(
+                export_records, output_path=availability_path,
+                frequency=frequency, metric="percent_available",
+            )
+            print(f"Percent availability table written to {availability_path}")
+
+        if conf.get("export_dqr_flagged_percent", False):
+            flagged_path = Path(conf.get(
+                "dqr_flagged_percent_outname",
+                pdf_path.with_name(f"{pdf_path.stem}_percent_dqr_flagged_{frequency}.csv"),
+            ))
+            export_availability_table(
+                export_records, output_path=flagged_path,
+                frequency=frequency, metric="percent_flagged",
+            )
+            print(f"Percent DQR-flagged table written to {flagged_path}")
+
         written_dqrs = export_dqr_ranges(
             export_records,
             output_path=dqr_path,
@@ -1462,3 +1581,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
