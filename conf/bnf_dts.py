@@ -14,9 +14,9 @@ conf = {
     'dqr_table': True,
     'doi_table': True, #this will remove the DOI from besides the plots
     'instruments':{
-        'dts': {'dsname': 'bnftowerdtsch1S10.b1'},
-        'dts2': {'dsname': 'bnftowerdtsch2S10.b1'},
-        'dts3': {'dsname': 'bnftowerdtsch3S10.b1'},
-        'dts4': {'dsname': 'bnftowerdtsch4S10.b1'},
+        'dts': {'dsname': 'towerdtsch1S10.b1'},
+        'dts2': {'dsname': 'towerdtsch2S10.b1'},
+        'dts3': {'dsname': 'towerdtsch3S10.b1'},
+        'dts4': {'dsname': 'towerdtsch4S10.b1'},
     }
 }
